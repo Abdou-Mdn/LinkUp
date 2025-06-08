@@ -19,18 +19,40 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    bio: {
+        type: String,
+        default: '',
+        maxlength: 150, 
+    },
     profilePic: {
         type: String,
         default: '',
     },
+    lastSeen: Date,
+    birthdate: Date,
+    socials: [{
+        social: {
+            type: String,
+            enum: ["facebook", "instagram", "twitter", "linkedin", "github", "discord","reddit"],
+            required: true,
+        },
+        link: {
+            type: String,
+            required: true
+        },
+    }],
     friends: [{ 
-        type: Number,  
-        ref: "User"
+        user: {type: Number, ref: "User"},
+        friendsSince: Date
     }],
     friendRequests: [{
-        type: Number,
-        ref: "User"
+        user: {type: Number, ref: "User"},
+        requestedAt: Date
     }],
+    pinnedGroups: [{
+        type: Number,
+        ref: "Group"
+    }]
 }, {
     timestamps: true
 })

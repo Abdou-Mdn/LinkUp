@@ -6,22 +6,14 @@ const messageSchema = new mongoose.Schema({
         type: Number,
         unique: true,
     },
+    chatID: {
+        type: Number,
+        ref: "Chat"
+    },
     sender: {
         type: Number,
         required: true,
         ref: "User"
-    },
-    receiver: {
-        type: Number,
-        ref: "User"
-    },
-    groupChat: {
-        type: Number,
-        ref: "Group"
-    },
-    isPrivate: {
-        type: Boolean,
-        default: true
     },
     text: String,
     image: String,

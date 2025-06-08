@@ -53,14 +53,19 @@ const signup = async (req, res) => {
 const login = async (req,res) => {
     const {email, password} = req.body; 
     try {
+        //finding the registered user with the provided email
         const user = await User.findOne({email});
         
         if(!user) {
+            // no user registered with the provided email
             return res.status(400).json({"message": "Invalid credentials"});
         }
         
+        // checking if the provided password is correct
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
+        
         if(!isPasswordCorrect) {
+            // incorrect password
             return res.status(400).json({"message": "Invalid credentials"});
         }
 
@@ -76,6 +81,7 @@ const login = async (req,res) => {
 
 const logout = (req,res) => {
     try {
+        // deleting the cookie
         res.cookie("jwt","",{maxAge: 0});
         res.status(200).json({"message": "Logged out seccussfully "});
     } catch (error) {
