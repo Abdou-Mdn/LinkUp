@@ -48,6 +48,14 @@ const userSchema = new mongoose.Schema({
         user: {type: Number, ref: "User"},
         requestedAt: Date
     }],
+    sentFriendRequests: [{
+        user: {type: Number, ref: "User"},
+        requestedAt: Date
+    }],
+    sentJoinRequests: [{
+        group: {type: Number, ref: "Group"},
+        requestedAt: Date
+    }],
     pinnedGroups: [{
         type: Number,
         ref: "Group"
