@@ -9,7 +9,6 @@ const userSchema = new mongoose.Schema({
     email: {
         type: String,
         required: true,
-        unique: true,
     },
     name: {
         type: String,
@@ -52,7 +51,11 @@ const userSchema = new mongoose.Schema({
     pinnedGroups: [{
         type: Number,
         ref: "Group"
-    }]
+    }],
+    isDeleted: {
+        type: Boolean,
+        default: false,
+    }
 }, {
     timestamps: true
 })

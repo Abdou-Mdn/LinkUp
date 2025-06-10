@@ -17,7 +17,7 @@ const signup = async (req, res) => {
         }
 
         // checking if a user is already registered with the provided email
-        const user = await User.findOne({email});
+        const user = await User.findOne({email, isDeleted: { $ne: true }});
 
         if(user) {
             return res.status(400).json({"message": "Email already registered"});
@@ -54,7 +54,7 @@ const login = async (req,res) => {
     const {email, password} = req.body; 
     try {
         //finding the registered user with the provided email
-        const user = await User.findOne({email});
+        const user = await User.findOne({email, isDeleted: { $ne: true }});
         
         if(!user) {
             // no user registered with the provided email
