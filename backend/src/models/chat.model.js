@@ -26,7 +26,7 @@ const chatSchema = new mongoose.Schema({
     updatedAt: Date,
 });
 
-chatSchema.plugin(AutoIncrement, {inc_field: chatID});
+chatSchema.plugin(AutoIncrement, {inc_field: 'chatID'});
 
 const Chat = mongoose.model("Chat", chatSchema);
 

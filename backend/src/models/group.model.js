@@ -14,7 +14,12 @@ const groupSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
-    users: [{
+    description: {
+        type: String,
+        default: '',
+        maxlength: 150, 
+    },
+    members: [{
         user: {type: Number, ref: "User"},
         joinedAt: Date
     }],

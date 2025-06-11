@@ -15,7 +15,7 @@ const getUsers = async (req, res) => {
             isDeleted: { $ne: true } // user shouldn't be deleted
         };
 
-        const total = await User.countDocuments(filter) // getting the total users 
+        const total = await User.countDocuments(filter) // getting the total number of users 
 
         // getting the users
         const users = await User.find(filter) // applying the filter
@@ -48,7 +48,7 @@ const getUserDetails = async (req, res) => {
 
         res.json(user);
     } catch (error) {
-        console.error("Error in getUserDetails controller:", error.message);
+        console.error("Error in get user details controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
     }
 }
@@ -292,12 +292,19 @@ const updateProfile = async (req, res) => {
 
         // updating the fields if provided
         if(name) user.name = name;
-        if(bio) user.bio = bio;
+        if(bio != undefined) {
+             if (bio.length > 150) {
+                return res.status(400).json({ message: "Bio must be 150 characters or fewer" });
+            }
+            user.bio = bio;
+        } 
         if(birthdate) user.birthdate = birthdate;
         if(socials) user.socials = socials;
         if(profilePic) {
             // uploading the pic to cloudinary first
-            const uploadResponse = await cloudinary.uploader.upload(profilePic);
+            const uploadResponse = await cloudinary.uploader.upload(profilePic, {
+                folder: "profiles"
+            });
             user.profilePic = uploadResponse.secure_url;
         }
 

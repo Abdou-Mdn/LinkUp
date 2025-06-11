@@ -56,10 +56,6 @@ const userSchema = new mongoose.Schema({
         group: {type: Number, ref: "Group"},
         requestedAt: Date
     }],
-    pinnedGroups: [{
-        type: Number,
-        ref: "Group"
-    }],
     isDeleted: {
         type: Boolean,
         default: false,
