@@ -1,7 +1,9 @@
 const User = require("../models/user.model");
+const Group = require("../models/group.model");
 const cloudinary = require("../lib/cloudinary");
 const bcrypt = require("bcrypt");
 
+/* ********* getting details ********* */
 
 const getUsers = async (req, res) => {
     try {
@@ -53,9 +55,11 @@ const getUserDetails = async (req, res) => {
     }
 }
 
+/* ********** managing friends **********  */
+
 const getFriends = async (req, res) => {
     try {
-        const { userID } = req.user.userID
+        const userID = req.user.userID
         const name = req.query.name || "";
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
@@ -107,134 +111,10 @@ const getFriends = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Error in getFriends controller:", error.message);
+        console.error("Error in get friends controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
     }
 };
-
-const getFriendRequests = async (req, res) => {
-    try {
-        const { userID } = req.user.userID
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-
-        // Find the user to get their friends list
-        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("friendRequests");
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        // we sort the requests based on the time requested 
-        const sortedRequests = user.friendRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
-
-        const total = sortedRequests.length;
-        const startIndex = (page - 1) * limit;
-        const paginatedRequests = sortedRequests.slice(startIndex, startIndex + limit);
-
-        // get all the friends ids
-        const requestIDs = paginatedRequests.map(f => f.user);
-        
-        if (requestIDs.length === 0) {
-            // if user has no friends we return an empty array 
-            return res.json({
-                page,
-                limit,
-                totalPages: 0,
-                totalResults: 0,
-                requests: []
-            });
-        }
-
-        // we find all the users that are in the friend requests array
-        const requesters = await User.find({userID: { $in: requestIDs }, isDeleted: { $ne: true }})
-            .select("userID name profilePic");
-
-        // we map back all the requestedAt values to their users
-        const requestedAtMap = new Map();
-        paginatedRequests.forEach(req => {
-            requestedAtMap.set(req.user, req.requestedAt);
-        });
-
-        const requests = requesters.map(u => ({
-            ...u.toObject(),
-            requestedAt: requestedAtMap.get(u.userID)
-        }));
-        
-        return res.json({
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
-            totalResults: total,
-            requests
-        });
-
-    } catch (error) {
-        console.error("Error in getFriendRequests controller:", error.message);
-        res.status(500).json({ message: "Internal server error" });
-    }
-}
-
-const getPendingRequests = async (req, res) => {
-    try {
-        const { userID } = req.user.userID
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-
-        // Find the user to get their friends list
-        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("sentFriendRequests");
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        // we sort the requests based on the time requested 
-        const sortedRequests = user.sentFriendRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
-
-        const total = sortedRequests.length;
-        const startIndex = (page - 1) * limit;
-        const paginatedRequests = sortedRequests.slice(startIndex, startIndex + limit);
-
-        // get all the friends ids
-        const requestIDs = paginatedRequests.map(f => f.user);
-        
-        if (requestIDs.length === 0) {
-            // if user has no friends we return an empty array 
-            return res.json({
-                page,
-                limit,
-                totalPages: 0,
-                totalResults: 0,
-                requests: []
-            });
-        }
-
-        // we find all the users that are in the friend requests array
-        const requesters = await User.find({userID: { $in: requestIDs }, isDeleted: { $ne: true }})
-            .select("userID name profilePic");
-
-        // we map back all the requestedAt values to their users
-        const requestedAtMap = new Map();
-        paginatedRequests.forEach(req => {
-            requestedAtMap.set(req.user, req.requestedAt);
-        });
-
-        const requests = requesters.map(u => ({
-            ...u.toObject(),
-            requestedAt: requestedAtMap.get(u.userID)
-        }));
-        
-        return res.json({
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
-            totalResults: total,
-            requests
-        });
-
-    } catch (error) {
-        console.error("Error in getPendingRequests controller:", error.message);
-        res.status(500).json({ message: "Internal server error" });
-    }
-}
 
 const getMutualFriends = async (req, res) => {
     try {
@@ -256,11 +136,11 @@ const getMutualFriends = async (req, res) => {
         }
 
         // we get the friend ids of the current user and the other user
-        const currentUserFriends = currentUser.map(f => f.user);
-        const otherUserFriends = otherUser.map(f => f.user);
+        const currentUserFriends = currentUser.friends.map(f => f.user);
+        const otherUserFriends = otherUser.friends.map(f => f.user);
 
         // we look for the intersection between the two arrays
-        const mutualIDs = currentUserFriends.filter(id => otherUserFriends.has(id));
+        const mutualIDs = currentUserFriends.filter(id => otherUserFriends.includes(id));
 
         // if users have no mutual friends we return an empty array
         if (mutualIDs.length === 0) {
@@ -274,10 +154,46 @@ const getMutualFriends = async (req, res) => {
         res.json({ mutualFriends });
 
     } catch (error) {
-        console.error("Error in getMutualFriends controller:", error.message);
+        console.error("Error in get mutual friends controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
     }
 }
+
+
+const removeFriend = async (req, res) => {
+    try {
+        const userID = req.user.userID;
+        const friendID = parseInt(req.params.userID);
+
+        if (userID === friendID) {
+            return res.status(400).json({ message: "You cannot unfriend yourself." });
+        }
+
+        const user = await User.findOne({userID, isDeleted: { $ne: true }});
+        const friend = await User.findOne({userID: friendID, isDeleted: { $ne: true }});
+
+        if (!user || !friend) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        // remove friend from user's friends list
+        user.friends = user.friends.filter(f => f.user !== friendID);
+
+        // remove user from friend's friends list
+        friend.friends = friend.friends.filter(f => f.user !== userID);
+
+        await user.save();
+        await friend.save();
+
+        res.status(200).json({ message: "Friend removed successfully." });
+
+    } catch (error) {
+        console.error("Error in remove friend controller:", error.message);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+ /* ********* managing profile ********* */ 
 
 const updateProfile = async (req, res) => {
     try {
@@ -436,7 +352,133 @@ const deleteAccount = async (req, res) => {
         res.status(200).json({ message: "Account deleted successfully"});
 
     } catch (error) {
-        console.error("Error in delete controller:", error.message);
+        console.error("Error in delete account controller:", error.message);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+ /* ********* managing requests ********* */
+
+const getPendingFriendRequests = async (req, res) => {
+    try {
+        const userID = req.user.userID
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+
+        // Find the user to get their friends list
+        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("friendRequests");
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // we sort the requests based on the time requested 
+        const sortedRequests = user.friendRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
+
+        const total = sortedRequests.length;
+        const startIndex = (page - 1) * limit;
+        const paginatedRequests = sortedRequests.slice(startIndex, startIndex + limit);
+
+        // get all the friends ids
+        const requestIDs = paginatedRequests.map(f => f.user);
+        
+        if (requestIDs.length === 0) {
+            // if user has no friends we return an empty array 
+            return res.json({
+                page,
+                limit,
+                totalPages: 0,
+                totalResults: 0,
+                requests: []
+            });
+        }
+
+        // we find all the users that are in the friend requests array
+        const requesters = await User.find({userID: { $in: requestIDs }, isDeleted: { $ne: true }})
+            .select("userID name profilePic");
+
+        // we map back all the requestedAt values to their users
+        const requestedAtMap = new Map();
+        paginatedRequests.forEach(req => {
+            requestedAtMap.set(req.user, req.requestedAt);
+        });
+
+        const requests = requesters.map(u => ({
+            ...u.toObject(),
+            requestedAt: requestedAtMap.get(u.userID)
+        }));
+        
+        return res.json({
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+            totalResults: total,
+            requests
+        });
+
+    } catch (error) {
+        console.error("Error in get friend requests controller:", error.message);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+const getSentFriendRequests = async (req, res) => {
+    try {
+        const userID = req.user.userID
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+
+        // Find the user to get their friends list
+        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("sentFriendRequests");
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // we sort the requests based on the time requested 
+        const sortedRequests = user.sentFriendRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
+
+        const total = sortedRequests.length;
+        const startIndex = (page - 1) * limit;
+        const paginatedRequests = sortedRequests.slice(startIndex, startIndex + limit);
+
+        // get all the friends ids
+        const requestIDs = paginatedRequests.map(f => f.user);
+        
+        if (requestIDs.length === 0) {
+            // if user has no friends we return an empty array 
+            return res.json({
+                page,
+                limit,
+                totalPages: 0,
+                totalResults: 0,
+                requests: []
+            });
+        }
+
+        // we find all the users that are in the friend requests array
+        const requesters = await User.find({userID: { $in: requestIDs }, isDeleted: { $ne: true }})
+            .select("userID name profilePic");
+
+        // we map back all the requestedAt values to their users
+        const requestedAtMap = new Map();
+        paginatedRequests.forEach(req => {
+            requestedAtMap.set(req.user, req.requestedAt);
+        });
+
+        const requests = requesters.map(u => ({
+            ...u.toObject(),
+            requestedAt: requestedAtMap.get(u.userID)
+        }));
+        
+        return res.json({
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+            totalResults: total,
+            requests
+        });
+
+    } catch (error) {
+        console.error("Error in get sent friend requests controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
     }
 }
@@ -508,20 +550,18 @@ const cancelFriendRequest = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // Check if the request exists in sender's sentRequests
-        const sentRequestIndex = sender.sentFriendRequests.findIndex(r => r.user === receiverID);
-        if (sentRequestIndex === -1) {
-            return res.status(400).json({ message: "No pending friend request to cancel" });
+        // check if the request exists
+        const requested = receiver.friendRequests.some(r => r.user === senderID) && sender.sentFriendRequests.some(r => r.user === receiverID);
+
+        if (!requested) {
+            return res.status(400).json({ message: "No friend request to cancel" });
         }
 
-        // Remove from sender's sentRequests
-        sender.sentRequests.splice(sentRequestIndex, 1);
+        // remove the friend request from the sender's array
+        sender.sentFriendRequests = sender.sentFriendRequests.filter(r => r.user !== receiverID);
 
-        // Remove from receiver's friendRequests
-        const friendRequestIndex = receiver.friendRequests.findIndex(r => r.user === senderID);
-        if (friendRequestIndex !== -1) {
-            receiver.friendRequests.splice(friendRequestIndex, 1);
-        }
+        // remove the friend request from the receiver's array
+        receiver.friendRequests = receiver.friendRequests.filter(r => r.user !== senderID);
 
         await sender.save();
         await receiver.save();
@@ -545,26 +585,28 @@ const acceptFriendRequest = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // checking if the request exists
-        const requestIndex = currentUser.friendRequests.findIndex(
-            req => req.user === requesterID
-        );
+        // check if the request exists
+        const requested = currentUser.friendRequests.some(r => r.user === requesterID) && requester.sentFriendRequests.some(r => r.user === currentUserID);
 
-        if (requestIndex === -1) {
+        if (!requested) {
             return res.status(400).json({ message: "No friend request from this user" });
+        }
+
+        // check if the users are already friends
+        const alreadyFriends = currentUser.friends.some(f => f.user === requesterID) && requester.friends.some(f => f.user === currentUserID);
+        if (alreadyFriends) {
+            return res.status(400).json({ message: "Already friends." });
         }
 
         // add each other to friends
         currentUser.friends.push({ user: requesterID, friendsSince: new Date() });
         requester.friends.push({ user: currentUserID, friendsSince: new Date() });
 
-        // remove the friend request
-        currentUser.friendRequests.splice(requestIndex, 1);
+        // remove the friend request from the current user's array
+        currentUser.friendRequests = currentUser.friendRequests.filter(r => r.user !== requesterID);
 
-        const sentRequestIndex = requester.sentFriendRequests.findIndex(
-            req => req.user === currentUserID
-        );
-        requester.sentFriendRequests.splice(sentRequestIndex, 1);
+        // remove the friend request from the requesters array
+        requester.sentFriendRequests = requester.sentFriendRequests.filter(r => r.user !== currentUserID);
 
         await currentUser.save();
         await requester.save();
@@ -572,7 +614,7 @@ const acceptFriendRequest = async (req, res) => {
         res.status(200).json({ message: "Friend request accepted" });
 
     } catch (error) {
-        console.error("Error in acceptFriendRequest:", error.message);
+        console.error("Error in accept friend request controller :", error.message);
         res.status(500).json({ message: "Internal server error" });
     }
 };
@@ -585,26 +627,22 @@ const declineFriendRequest = async (req, res) => {
         const currentUser = await User.findOne({userID: currentUserID, isDeleted: { $ne: true }});
         const requester = await User.findOne({userID: requesterID, isDeleted: { $ne: true }});
 
-        if (!currentUser) {
+        if (!currentUser || !requester) {
             return res.status(404).json({ message: "User not found" });
         }
 
         // check if the request exists
-        const requestIndex = currentUser.friendRequests.findIndex(
-            req => req.user === requesterID
-        );
+        const requested = currentUser.friendRequests.some(r => r.user === requesterID) && requester.sentFriendRequests.some(r => r.user === currentUserID);
 
-        if (requestIndex === -1) {
+        if (!requested) {
             return res.status(400).json({ message: "No friend request from this user" });
         }
 
-        // remove the friend request
-        currentUser.friendRequests.splice(requestIndex, 1);
+        // remove the friend request from the current user's array
+        currentUser.friendRequests = currentUser.friendRequests.filter(r => r.user !== requesterID);
 
-        const sentRequestIndex = requester.sentFriendRequests.findIndex(
-            req => req.user === currentUserID
-        );
-        requester.sentFriendRequests.splice(sentRequestIndex, 1);
+        // remove the friend request from the requesters array
+        requester.sentFriendRequests = requester.sentFriendRequests.filter(r => r.user !== currentUserID);
 
         await currentUser.save();
         await requester.save();
@@ -612,46 +650,81 @@ const declineFriendRequest = async (req, res) => {
         res.status(200).json({ message: "Friend request declined" });
 
     } catch (error) {
-        console.error("Error in declineFriendRequest:", error.message);
+        console.error("Error in decline friend request controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
     }
-};
+}
 
-const removeFriend = async (req, res) => {
+const getSentJoinRequests = async (req, res) => {
     try {
-        const userID = req.user.userID;
-        const friendID = parseInt(req.params.userID);
+        const userID = req.user.userID
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
 
-        if (userID === friendID) {
-            return res.status(400).json({ message: "You cannot unfriend yourself." });
+        // Find the user to get their sent join requests list
+        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("sentJoinRequests");
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
         }
 
-        const user = await User.findOne({userID, isDeleted: { $ne: true }});
-        const friend = await User.findOne({userID: friendID, isDeleted: { $ne: true }});
+        // we sort the requests based on the time requested 
+        const sortedRequests = user.sentJoinRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
 
-        if (!user || !friend) {
-            return res.status(404).json({ message: "User not found." });
+        const total = sortedRequests.length;
+        const startIndex = (page - 1) * limit;
+        const paginatedRequests = sortedRequests.slice(startIndex, startIndex + limit);
+
+        // get all the group ids
+        const requestIDs = paginatedRequests.map(f => f.group);
+        
+        if (requestIDs.length === 0) {
+            // if user has no sent request we return an empty array 
+            return res.json({
+                page,
+                limit,
+                totalPages: 0,
+                totalResults: 0,
+                requests: []
+            });
         }
 
-        // remove friend from user's friends list
-        user.friends = user.friends.filter(f => f.user !== friendID);
+        // we find all the groups that are in the sent join requests array
+        const requesters = await Group.find({groupID: { $in: requestIDs }})
+            .select("groupID name image");
 
-        // remove user from friend's friends list
-        friend.friends = friend.friends.filter(f => f.user !== userID);
+        // we map back all the requestedAt values to their groups
+        const requestedAtMap = new Map();
+        paginatedRequests.forEach(req => {
+            requestedAtMap.set(req.group, req.requestedAt);
+        });
 
-        await user.save();
-        await friend.save();
-
-        res.status(200).json({ message: "Friend removed successfully." });
+        const requests = requestIDs.map(id => {
+            const group = requesters.find(g => g.groupID === id);
+            if (!group) return null;
+            return {
+                ...group.toObject(),
+                requestedAt: requestedAtMap.get(group.groupID)
+            };
+        }).filter(Boolean);
+        
+        return res.json({
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+            totalResults: total,
+            requests
+        });
 
     } catch (error) {
-        console.error("Error in removeFriend controller:", error.message);
+        console.error("Error in get sent join request controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
     }
-};
+}
 
 module.exports = {
-    getUsers, getUserDetails, getFriends, getFriendRequests, getPendingRequests, 
-    getMutualFriends, updateProfile, updateEmail, updatePassword, deleteAccount, 
-    sendFriendRequest, cancelFriendRequest, acceptFriendRequest, declineFriendRequest, removeFriend
+    getUsers, getUserDetails, 
+    getFriends, getMutualFriends, removeFriend,
+    updateProfile, updateEmail, updatePassword, deleteAccount,
+    getPendingFriendRequests, getSentFriendRequests, sendFriendRequest, cancelFriendRequest, 
+    acceptFriendRequest, declineFriendRequest, getSentJoinRequests
 }

@@ -22,6 +22,10 @@ const messageSchema = new mongoose.Schema({
         ref: "Message",
         default: null
     },
+    isGroupInvite: {
+        type: Boolean,
+        default: false,
+    },
     isDelivered: {
         type: Boolean,
         default: false,

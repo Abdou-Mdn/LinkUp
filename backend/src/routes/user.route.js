@@ -3,11 +3,11 @@ const router = express.Router();
 
 const authMiddleware = require("../middleware/auth.middleware");
 const { 
-    getUsers, getUserDetails, getFriends, getFriendRequests, getMutualFriends, 
+    getUsers, getUserDetails, 
+    getFriends, getMutualFriends, removeFriend,
     updateProfile, updateEmail, updatePassword, deleteAccount, 
-    sendFriendRequest, acceptFriendRequest, declineFriendRequest, removeFriend, 
-    getPendingRequests,
-    cancelFriendRequest
+    getPendingFriendRequests, getSentFriendRequests, sendFriendRequest, cancelFriendRequest,
+    acceptFriendRequest, declineFriendRequest, getSentJoinRequests
 } = require("../controllers/user.controller");
 
 // route is /api/user
@@ -19,18 +19,19 @@ router.get("/:userID", getUserDetails);
 // protected routes
 router.use(authMiddleware);
 
-// friends and friends requests
+// friends
 router.get("/friends", getFriends);
-router.get("/requests/recieved", getFriendRequests);
-router.get("/requests/sent", getPendingRequests);
 router.get("/mutual/:userID",  getMutualFriends);
 router.delete("/friend/:userID",  removeFriend);
 
-// request actions
+// requests
+router.get("/requests/recieved", getPendingFriendRequests);
+router.get("/requests/sent", getSentFriendRequests);
+router.get("/request/sent/groups", getSentJoinRequests);
 router.post("/request/:userID",  sendFriendRequest);
-router.delete("/request/:userID/cancel", cancelFriendRequest);
-router.put("/request/:userID",  acceptFriendRequest);
-router.delete("/request/:userID",  declineFriendRequest);
+router.delete("/request/cancel/:userID", cancelFriendRequest);
+router.post("/request/accept/:userID",  acceptFriendRequest);
+router.post("/request/decline/:userID",  declineFriendRequest);
 
 // profile update
 router.put("/profile",  updateProfile);
