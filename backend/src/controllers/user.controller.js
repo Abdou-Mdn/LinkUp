@@ -1,5 +1,7 @@
 const User = require("../models/user.model");
 const Group = require("../models/group.model");
+const Chat = require("../models/chat.model");
+const Message = require("../models/message.model");
 const cloudinary = require("../lib/cloudinary");
 const bcrypt = require("bcrypt");
 
@@ -185,6 +187,16 @@ const removeFriend = async (req, res) => {
         await user.save();
         await friend.save();
 
+        const chat = await Chat.findOneAndDelete({
+            isGroup: false,
+            participants: { $all: [userID, friendID] }
+        });
+
+        // delete all messages referencing the deleted chat
+        if (chat) {
+            await Message.deleteMany({ chat: chat.chatID });
+        }
+
         res.status(200).json({ message: "Friend removed successfully." });
 
     } catch (error) {
@@ -226,7 +238,7 @@ const updateProfile = async (req, res) => {
 
         await user.save();
         // excluding the password from the response
-        const { password, ...userWithoutPassword } = user._doc;
+        const { password, ...userWithoutPassword } = user.toObject();
 
         res.json({ message: "User is updated successfully", user: userWithoutPassword }); 
     } catch (error) {
@@ -267,7 +279,7 @@ const updateEmail = async (req, res) => {
         user.email = email; 
         await user.save();
         // excluding the password from the response
-        const { password: pass, ...userWithoutPassword } = user._doc;
+        const { password: pass, ...userWithoutPassword } = user.toObject();
 
         res.json({ message: "Email is updated successfully", user: userWithoutPassword }); 
 
@@ -314,7 +326,7 @@ const updatePassword = async (req, res) => {
         user.password = await bcrypt.hash(newPassword, salt);
 
         await user.save();
-        const { password, ...userWithoutPassword } = user._doc;
+        const { password, ...userWithoutPassword } = user.toObject();
 
         res.json({ message: "Password is updated successfully", user: userWithoutPassword }); 
 

@@ -36,9 +36,10 @@ const signup = async (req, res) => {
 
         if(newUser) {
             const savedUser = await newUser.save();
+            const { password, ...userWithoutPassword } = savedUser.toObject();
             generateToken(savedUser.userID, res);
             res.status(201).json({
-                user: savedUser
+                user: userWithoutPassword
             });
         } else {
             res.status(400).json({"message": "Invalid user data"});
@@ -54,7 +55,7 @@ const login = async (req,res) => {
     const {email, password} = req.body; 
     try {
         //finding the registered user with the provided email
-        const user = await User.findOne({email, isDeleted: { $ne: true }});
+        const user = await User.findOne({email, isDeleted: { $ne: true }}).select("-_id -__v");
         
         if(!user) {
             // no user registered with the provided email
@@ -69,9 +70,10 @@ const login = async (req,res) => {
             return res.status(400).json({"message": "Invalid credentials"});
         }
 
+        const { password, ...userWithoutPassword } = user.toObject();
         generateToken(user.userID,res);
 
-        res.status(200).json({ user })
+        res.status(200).json({ user: userWithoutPassword });
 
     } catch (error) {
         console.error("Error in login contoller", error.message);

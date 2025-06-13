@@ -180,7 +180,7 @@ const createGroup = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        if(!name) {
+        if(!name || name.trim() === "") {
             return res.status(400).json({"message": "Group name is required"});
         }
 
@@ -336,6 +336,12 @@ const addMember = async (req, res) => {
         });
 
         await group.save();
+
+        await Chat.updateOne(
+            { group: groupID },
+            { $addToSet: { participants: memberID } }
+        );
+
         res.status(200).json({ message: "Member added successfully"});        
 
     } catch (error) {
@@ -382,6 +388,12 @@ const removeMember = async (req, res) => {
         group.admins = group.admins.filter(a => a !== memberID);
 
         await group.save();
+
+        await Chat.updateOne(
+            { group: groupID },
+            { $pull: { participants: memberID } }
+        );
+
         res.status(200).json({ message: "Member removed successfully"});        
 
     } catch (error) {
@@ -489,6 +501,11 @@ const leaveGroup = async (req, res) => {
         }
 
         await group.save();
+
+        await Chat.updateOne(
+            { group: groupID },
+            { $pull: { participants: userID } }
+        );
 
         res.status(200).json({ message: "You left the group", groupDeleted: false });
     } catch (error) {
@@ -700,6 +717,11 @@ const acceptJoinRequest = async (req, res) => {
 
         await group.save();
         await requester.save();
+
+        await Chat.updateOne(
+            { group: groupID },
+            { $addToSet: { participants: requesterID } }
+        );
 
         res.status(200).json({ message: "Join request accepted" });
 

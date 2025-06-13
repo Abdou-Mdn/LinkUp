@@ -22,13 +22,18 @@ const messageSchema = new mongoose.Schema({
         ref: "Message",
         default: null
     },
-    isGroupInvite: {
-        type: Boolean,
-        default: false,
+    groupInvite: {
+        type: Number,
+        ref: "Group",
+        default: null
     },
-    isDelivered: {
+    isEdited: {
         type: Boolean,
-        default: false,
+        default: false
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false
     },
     seenBy: [{
         user: {type: Number, ref: "User"},
