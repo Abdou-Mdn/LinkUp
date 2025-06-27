@@ -70,7 +70,7 @@ const login = async (req,res) => {
             return res.status(400).json({"message": "Invalid credentials"});
         }
 
-        const { password, ...userWithoutPassword } = user.toObject();
+        const { password: _, ...userWithoutPassword } = user.toObject();
         generateToken(user.userID,res);
 
         res.status(200).json({ user: userWithoutPassword });
