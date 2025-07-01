@@ -15,7 +15,6 @@ export const useAuthStore = create((set, get) => ({
             set({ authUser: res.data});
         } catch (error) {
             set({authUser: null});
-            console.log("Error in checkAuth: ",error);
         } finally {
             set({ isCheckingAuth: false});
         }
@@ -28,7 +27,7 @@ export const useAuthStore = create((set, get) => ({
             set({authUser: res.data});
             toast.success("Logged in successfully");
         } catch (error) {
-            set({ isLoggingIn: false });
+            toast.error(error.response.data.message)
         } finally {
             set({ isLoggingIn: false });
         }
