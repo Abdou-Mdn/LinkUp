@@ -1,9 +1,9 @@
 import React from 'react'
-import { useLayoutStore } from '../store/layout.store'
-import { House, Compass, UserCheck, Users, MessagesSquare, Moon, Sun } from 'lucide-react'
+import { useLayoutStore } from '../../store/layout.store'
+import { House, Compass, UserCheck, Users, MessagesSquare, Moon, Sun, MessageCircleMore } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom';
-import { useThemeStore } from '../store/theme.store';
-import { useAuthStore } from '../store/auth.store';
+import { useThemeStore } from '../../store/theme.store';
+import { useAuthStore } from '../../store/auth.store';
 
 const Tab = ({path, icon, toolip}) => {
     const { isMobile } = useLayoutStore();
@@ -11,9 +11,10 @@ const Tab = ({path, icon, toolip}) => {
     <NavLink 
         to={path}
         className={({ isActive}) => `
-        ${ isMobile ? 'size-9' :'size-12'} flex items-center justify-center 
+        ${ isMobile ? 'size-9' :'size-10'} flex items-center justify-center 
         rounded-[50%] transition-all cursor-pointer relative group hover:rounded-[10px]
         ${ isActive ? 'bg-primary text-inverted' : 
+            isMobile ? 'text-light-txt dark:text-dark-txt' :
             'bg-light-200 text-light-txt dark:bg-dark-200 dark:text-dark-txt hover:bg-light-txt hover:text-light-200 dark:hover:bg-dark-txt dark:hover:text-dark-200'
         }`}
         
@@ -37,13 +38,13 @@ const ThemeSwitch = ({direction = 'vertical'}) => {
         <button 
             onClick={toggleTheme}
             className={`bg-light-200 dark:bg-dark-200 rounded-3xl relative
-                ${ isVertical ? 'h-20 w-12' : 'h-9 w-15'}`}
+                ${ isVertical ? 'h-18 w-10' : 'h-8 w-15'}`}
         >
-            <div className={`${ isVertical ? 'size-10' : 'size-7'} rounded-3xl flex justify-center items-center 
+            <div className={`${ isVertical ? 'size-8' : 'size-6'} rounded-3xl flex justify-center items-center 
                 bg-light-100 dark:bg-dark-100 transition-all absolute left-1 top-1 
-                ${isDark ? isVertical ? 'translate-y-8' : 'translate-x-6' : 'translate-y-0 translate-x-0'}`}>
+                ${isDark ? isVertical ? 'translate-y-8' : 'translate-x-7' : 'translate-y-0 translate-x-0'}`}>
                 {
-                    isDark ? <Moon className='size-6 text-dark-txt' /> : <Sun className='size-6 text-light-txt'/>
+                    isDark ? <Moon className='size-4 text-dark-txt' /> : <Sun className='size-4 text-light-txt'/>
                 }
             </div>
         </button>
@@ -72,7 +73,7 @@ function NavBar() {
                <nav className='flex gap-3 items-center justify-between px-10 mt-2'>
                 <Tab 
                     path='/'
-                    icon={<MessagesSquare className='size-6' />} 
+                    icon={<MessageCircleMore className='size-6' />} 
                     toolip='Chats'
                 />
                 <Tab 
@@ -95,7 +96,7 @@ function NavBar() {
                     className={({ isActive}) => `
                     flex items-center justify-center overflow-hidden
                     rounded-[50%] transition-all cursor-pointer relative group hover:rounded-[10px]
-                    ${ isActive ? 'size-8 outline-4 outline-offset-1 outline-primary' : 'size-9'
+                    ${ isActive ? 'size-6 outline-4 outline-offset-1 outline-primary' : 'size-7'
                     }`}
                     
                 >
@@ -119,22 +120,22 @@ function NavBar() {
             <nav className='flex flex-col gap-3 items-center'>
                 <Tab 
                     path='/'
-                    icon={<MessagesSquare className='size-8' />} 
+                    icon={<MessageCircleMore className='size-6' />} 
                     toolip='Chats'
                 />
                 <Tab 
                     path='/discover'
-                    icon={<Compass className='size-8' />} 
+                    icon={<Compass className='size-6' />} 
                     toolip='Discover'
                 />
                 <Tab 
                     path='/friends'
-                    icon={<UserCheck className='size-8' />} 
+                    icon={<UserCheck className='size-6' />} 
                     toolip='Friends'
                 />
                 <Tab 
                     path='/groups'
-                    icon={<Users className='size-8' />} 
+                    icon={<Users className='size-6' />} 
                     toolip='Groups'
                 />
             </nav>
@@ -150,7 +151,7 @@ function NavBar() {
                 className={({ isActive}) => `
                 flex items-center justify-center overflow-hidden
                 rounded-[50%] transition-all cursor-pointer relative group hover:rounded-[10px]
-                ${ isActive ? 'size-11 outline-4 outline-offset-1 outline-primary' : 'size-12'
+                ${ isActive ? 'size-8 outline-4 outline-offset-1 outline-primary' : 'size-9'
                 }`}
                 
             >

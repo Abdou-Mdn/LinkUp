@@ -44,7 +44,7 @@ const getUserDetails = async (req, res) => {
     try {
         const userID = parseInt(req.params.userID);
 
-        const user = User.findOne({userID, isDeleted: { $ne: true }}).select("-password -_id -__v");
+        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("-password -_id -__v");
 
         if(!user) {
             return res.status(404).json({ message: "User not found" });
@@ -210,7 +210,7 @@ const removeFriend = async (req, res) => {
 const updateProfile = async (req, res) => {
     try {
         const userID = req.user.userID;
-        const { name, bio, profilePic, birthdate, socials } = req.body;
+        const { name, bio, profilePic, cover, birthdate, socials } = req.body;
         
         const user = await User.findOne({userID, isDeleted: { $ne: true }});
 
@@ -221,7 +221,7 @@ const updateProfile = async (req, res) => {
         // updating the fields if provided
         if(name) user.name = name;
         if(bio != undefined) {
-             if (bio.length > 150) {
+            if (bio.length > 150) {
                 return res.status(400).json({ message: "Bio must be 150 characters or fewer" });
             }
             user.bio = bio;
@@ -236,11 +236,20 @@ const updateProfile = async (req, res) => {
             user.profilePic = uploadResponse.secure_url;
         }
 
+        if(cover) {
+            // uploading the pic to cloudinary first
+            const uploadResponse = await cloudinary.uploader.upload(cover, {
+                folder: "profiles"
+            });
+            user.cover = uploadResponse.secure_url;
+        }
+
+
         await user.save();
         // excluding the password from the response
         const { password, ...userWithoutPassword } = user.toObject();
 
-        res.json({ message: "User is updated successfully", user: userWithoutPassword }); 
+        res.json({ message: "Profile updated successfully", user: userWithoutPassword }); 
     } catch (error) {
         console.error("Error in update profile controller:", error.message);
         res.status(500).json({ message: "Internal server error" });

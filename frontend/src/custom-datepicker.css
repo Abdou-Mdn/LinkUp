@@ -1,0 +1,107 @@
+
+:root {
+
+    /* base colors */
+    --primary: #4A00E0;
+    --secondary: #8E2DE2;
+    --accent: #11E496;
+    --danger: #FF4F64;
+    --inverted: #FFFFFF; 
+
+    /* changeable colors are applied in the theme store */
+    --dp-bg-100: #FFFFFF;
+    --dp-bg-200: #F0F2F4;
+    --dp-bg-300: #CED2DB;
+
+    --dp-text-100: #1A1A2E;
+    --dp-text-200: #5A5A7A;
+
+    /* fonts */
+    --font-outfit: "Outfit", sans-serif; 
+}
+
+
+
+.react-datepicker__header,
+.react-datepicker__year-dropdown {
+    background-color: var(--dp-bg-200);
+    color: var(--dp-text-100);
+    font-size: 1rem;
+    line-height: 2rem;
+}
+
+.react-datepicker__year-read-view--down-arrow {
+    color: var(--dp-text-200);
+    right: -1.2rem;
+    top: 6px;
+}
+
+.react-datepicker__year-option {
+    line-height: 26px;
+}
+
+.react-datepicker__year-option:hover {
+    background-color: var(--dp-bg-300);
+}
+
+.react-datepicker__current-month {
+    color: var(--dp-text-100);
+    line-height: 2rem;
+}
+
+.react-datepicker__navigation {
+    top: 8px;
+}
+
+.react-datepicker__navigation--previous {
+    left: 2rem
+}
+
+.react-datepicker__navigation--next {
+    right: 2rem
+}
+
+.react-datepicker__day-name {
+    color: var(--dp-text-200);
+    font-weight: 700;
+    width: 2rem;
+    line-height: 2rem;
+}
+
+.react-datepicker__month-container{
+    background-color: var(--dp-bg-100);
+}
+
+.react-datepicker__day {
+    color: var(--dp-text-100);
+    font-size: 1rem;
+    font-weight: 900;
+    border-radius: 50%;
+    width: 2rem;
+    line-height: 2rem;
+}
+
+.react-datepicker__day--disabled {
+    color: var(--dp-text-200);
+    font-weight: 100;
+}
+
+.react-datepicker__day:not([aria-disabled="true"]):hover {
+    background-color: var(--dp-bg-300);
+    color: var(--dp-text-100);
+    border-radius: 50%;
+}
+
+.react-datepicker__day--today {
+    color: var(--accent);
+    font-weight: 900;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+    background-color: var(--secondary);
+    color: var(--inverted);
+}
+
+
+

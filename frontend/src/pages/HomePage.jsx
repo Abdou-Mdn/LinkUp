@@ -2,9 +2,8 @@ import React from 'react'
 import { useAuthStore } from '../store/auth.store'
 
 import PrimaryButton from '../components/PrimaryButton'
-import NavBar from '../components/NavBar';
 import { useLayoutStore } from '../store/layout.store';
-import ResponsiveLayout from '../components/ResponsiveLayout';
+import ResponsiveLayout from '../components/layout/ResponsiveLayout';
 
 function HomePage() {
 

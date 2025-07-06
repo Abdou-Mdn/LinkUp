@@ -27,18 +27,30 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: '',
     },
+    cover: {
+        type: String,
+        default: ''
+    },
     lastSeen: Date,
     birthdate: Date,
     socials: [{
-        social: {
+        id: {
+            type: Number,
+            required: true
+        },
+        platform: {
             type: String,
-            enum: ["facebook", "instagram", "twitter", "linkedin", "github", "discord","reddit"],
+            enum: ["facebook", "instagram", "twitter", "snapchat", "github", "tiktok", "reddit"],
             required: true,
         },
         link: {
             type: String,
             required: true
         },
+        label: {
+            type: String,
+            required: true
+        }
     }],
     friends: [{ 
         user: {type: Number, ref: "User"},

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { LoaderCircle } from "lucide-react";
-import { useThemeStore } from "./store/theme.store";
+import { useThemeStore, applyDatePickerTheme } from "./store/theme.store";
 import { useAuthStore } from "./store/auth.store";
 import { Toaster } from "react-hot-toast";
 
@@ -13,7 +13,7 @@ import FriendsPage from "./pages/FriendsPage";
 import GroupsPage from "./pages/GroupsPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
-import NavBar from "./components/NavBar";
+import NavBar from "./components/layout/NavBar";
 import { useLayoutStore } from "./store/layout.store";
 
 function App() {
@@ -24,11 +24,12 @@ function App() {
 
   useEffect(() => {
     updateIsMobile();
+    applyDatePickerTheme(theme);
 
     window.addEventListener("resize", () => updateIsMobile());
 
     return () => window.removeEventListener("resize", () => updateIsMobile());
-  }, [updateIsMobile]);
+  }, [updateIsMobile, applyDatePickerTheme]);
 
   useEffect(() => {
     checkAuth();

@@ -91,10 +91,11 @@ function SignUpPage() {
         <form onSubmit={handleSubmit} className='w-[75%] max-w-[370px] flex flex-col gap-4'>
           {/* name input */}
           <div className='w-full'>
-            <label className='font-outfit text-xs text-light-txt2 pl-1'>
+            <label htmlFor='name' className='font-outfit text-xs text-light-txt2 pl-1'>
               Name
             </label>                
             <input 
+              id='name'
               type="text"
               className={`p-1 w-full outline-0 
                 ${ formErrors.name ? 'border-b-2 border-danger text-danger' : 
@@ -113,10 +114,11 @@ function SignUpPage() {
           </div>
           {/* email input */}
           <div className='w-full'>
-            <label className='font-outfit text-xs text-light-txt2 pl-1'>
+            <label htmlFor='email' className='font-outfit text-xs text-light-txt2 pl-1'>
               Email
             </label>                
             <input 
+              id='email'
               type="text"
               className={`p-1 w-full outline-0 
                 ${ formErrors.email ? 'border-b-2 border-danger text-danger' : 
@@ -135,11 +137,12 @@ function SignUpPage() {
           </div>
           {/* password input */}
           <div className='w-full'>
-            <label className='font-outfit text-xs text-light-txt2 pl-1'>
+            <label htmlFor='password' className='font-outfit text-xs text-light-txt2 pl-1'>
               Password
             </label>   
             <div className='relative'>             
               <input 
+                id='password'
                 type={showPassword ? "text" : "password"}
                 className={`p-1 w-full outline-0 
                 ${ formErrors.password ? 'border-b-2 border-danger text-danger' : 
