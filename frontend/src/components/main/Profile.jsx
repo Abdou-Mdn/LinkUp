@@ -11,7 +11,6 @@ const Profile = ({ user, loading}) => {
   if(loading || !user) {
     return  <ProfileSkeleton />
   }
-  
 
   return (
     <div className='size-full bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'>
@@ -30,7 +29,7 @@ const Profile = ({ user, loading}) => {
           <span className='text-2xl font-bold'>{user.name}</span>
           {/* action buttons */}
           <ProfileButtons user={user}/>
-          <p className='mt-1 text-light-txt2 dark:text-dark-txt2'>{user.bio}</p>
+          <p className='mt-1 text-light-txt2 dark:text-dark-txt2 w-[75%] min-w-[350px]'>{user.bio}</p>
         </div>
         {/* additional infos */}
         <div className='w-full flex flex-col lg:flex-row items-start justify-between p-2 gap-4 lg:gap-0'>
@@ -59,7 +58,7 @@ const Profile = ({ user, loading}) => {
               <h3 className='font-semibold'>Socials:</h3>
               {
                 user.socials.map(s => (
-                  <p className='flex gap-2 py-2 group'>
+                  <p key={s.id} className='flex gap-2 py-2 group'>
                     {
                       s.platform == "facebook" ? <FaFacebook className='size-6 group-hover:text-primary' /> :
                       s.platform == "instagram" ? <FaInstagram className='size-6 group-hover:text-primary' /> :

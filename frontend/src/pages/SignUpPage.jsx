@@ -97,6 +97,7 @@ function SignUpPage() {
             <input 
               id='name'
               type="text"
+              autoComplete='off'
               className={`p-1 w-full outline-0 
                 ${ formErrors.name ? 'border-b-2 border-danger text-danger' : 
                   'border-b-1 border-light-txt2 focus:border-b-2 focus:border-light-txt text-light-txt'}  
@@ -120,6 +121,7 @@ function SignUpPage() {
             <input 
               id='email'
               type="text"
+              autoComplete='off'
               className={`p-1 w-full outline-0 
                 ${ formErrors.email ? 'border-b-2 border-danger text-danger' : 
                   'border-b-1 border-light-txt2 focus:border-b-2 focus:border-light-txt text-light-txt'}  
@@ -144,6 +146,7 @@ function SignUpPage() {
               <input 
                 id='password'
                 type={showPassword ? "text" : "password"}
+                autoComplete='off'
                 className={`p-1 w-full outline-0 
                 ${ formErrors.password ? 'border-b-2 border-danger text-danger' : 
                   'border-b-1 border-light-txt2 focus:border-b-2 focus:border-light-txt text-light-txt'}  

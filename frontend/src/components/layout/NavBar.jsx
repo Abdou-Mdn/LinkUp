@@ -59,7 +59,7 @@ function NavBar() {
 
     if(isMobile) {
         return isMainActive ? null :  (
-            <div className='bg-light-300 dark:bg-dark-300 sticky top-0 left-0 right-0 py-2'>
+            <div className='bg-light-300 dark:bg-dark-300 sticky top-0 left-0 right-0 py-2 z-40'>
                {/* top section */}
                <div className='flex  px-5 justify-between'>
                     {/* logo */}

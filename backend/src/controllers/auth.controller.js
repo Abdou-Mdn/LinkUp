@@ -38,9 +38,7 @@ const signup = async (req, res) => {
             const savedUser = await newUser.save();
             const { password, ...userWithoutPassword } = savedUser.toObject();
             generateToken(savedUser.userID, res);
-            res.status(201).json({
-                user: userWithoutPassword
-            });
+            res.status(201).json({ user: userWithoutPassword });
         } else {
             res.status(400).json({"message": "Invalid user data"});
         }

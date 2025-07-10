@@ -25,7 +25,7 @@ const getUsers = async (req, res) => {
         const users = await User.find(filter) // applying the filter
             .skip((page - 1) * limit) // getting the requested page
             .limit(limit) // getting only the number requested
-            .select("userID name profilePic lastSeen createdAt friends friendRequests"); // selecting the necessary fields only
+            .select("userID name bio profilePic lastSeen createdAt friends"); // selecting the necessary fields only
 
         res.json({
             page,
@@ -230,17 +230,21 @@ const updateProfile = async (req, res) => {
         if(socials) user.socials = socials;
         if(profilePic) {
             // uploading the pic to cloudinary first
+            console.log("uploading profile pic to cloudinary");
             const uploadResponse = await cloudinary.uploader.upload(profilePic, {
                 folder: "profiles"
             });
+            console.log("profile pic uploaded successfully");
             user.profilePic = uploadResponse.secure_url;
         }
 
         if(cover) {
             // uploading the pic to cloudinary first
+            console.log("uploading cover to cloudinary");
             const uploadResponse = await cloudinary.uploader.upload(cover, {
                 folder: "profiles"
             });
+            console.log("cover uploaded successfully");
             user.cover = uploadResponse.secure_url;
         }
 
