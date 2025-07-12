@@ -14,7 +14,7 @@ const {
 
 // public routes
 router.get('/search/', getUsers);
-router.get("/:userID", getUserDetails);
+router.get("/details/:userID", getUserDetails);
 
 // protected routes
 router.use(authMiddleware);

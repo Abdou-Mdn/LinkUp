@@ -21,7 +21,7 @@ const Tab = ({path, icon, toolip}) => {
     >
         { icon }
         {!isMobile && <span 
-            className='absolute right-[-100px] w-20 text-center p-2 rounded-2xl scale-0 group-hover:scale-100 bg-light-txt text-light-100 dark:bg-dark-txt dark:text-dark-100'
+            className='absolute right-[-100px] w-20 text-center p-2 rounded-2xl z-40 scale-0 group-hover:scale-100 bg-light-txt text-light-100 dark:bg-dark-txt dark:text-dark-100'
         >
             { toolip }
         </span>}
@@ -37,7 +37,8 @@ const ThemeSwitch = ({direction = 'vertical'}) => {
     return (
         <button 
             onClick={toggleTheme}
-            className={`bg-light-200 dark:bg-dark-200 rounded-3xl relative
+            title='Toggle Theme'
+            className={`bg-light-200 dark:bg-dark-200 rounded-3xl relative cursor-pointer
                 ${ isVertical ? 'h-18 w-10' : 'h-8 w-15'}`}
         >
             <div className={`${ isVertical ? 'size-8' : 'size-6'} rounded-3xl flex justify-center items-center 
@@ -111,7 +112,7 @@ function NavBar() {
     }
 
   return (
-    <div className='absolute left-0 top-0 bottom-0 w-20 py-4 flex flex-col justify-between bg-light-300 dark:bg-dark-300'>
+    <div className='absolute left-0 top-0 bottom-0 w-20 py-4 flex flex-col z-40 justify-between bg-light-300 dark:bg-dark-300'>
         {/* top section */}
         <div className=' flex flex-col gap-4'>
             {/* logo */}

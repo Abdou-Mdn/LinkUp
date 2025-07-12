@@ -196,7 +196,7 @@ function SignUpPage() {
         <h2 className='text-xl font-semibold text-center text-light-txt'>
           Join the LinkUp Community
         </h2>
-        <img src="/assets/Texting.gif" alt="texting gif" className='w-[70%]' />
+        <img src="/assets/Texting.gif" className='w-[70%]' />
         <span className='text-center text-light-txt2'>
           Create your account and start connecting with friends, joining group chats, and being part of something real.
         </span>

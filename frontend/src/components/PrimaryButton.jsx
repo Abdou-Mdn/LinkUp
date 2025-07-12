@@ -9,16 +9,18 @@ function PrimaryButton({
     loading = false,
     className = "w-full p-3",
     leftIcon = null,
-    rightIcon = null
+    rightIcon = null,
+    toolip=null,
 }) {
   const isDisabled = disabled || loading;
   return (
     <button
         type={type}
+        title={toolip}
         onClick={onClick}
         disabled={isDisabled}
         className={
-            `outline-0 text-center rounded-4xl transition-all font-medium mt-2 border-1 border-transparent
+            `outline-0 text-center rounded-4xl transition-all font-medium border-1 border-transparent
             ${className}
             ${isDisabled 
             ? 'bg-gradient-to-tr from-gray-500 to-gray-600 text-inverted cursor-not-allowed' 

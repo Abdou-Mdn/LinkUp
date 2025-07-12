@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import ResponsiveLayout from '../components/layout/ResponsiveLayout'
 import { Ghost, Search, X } from 'lucide-react'
 import debounce from 'lodash.debounce'
-import { getUserDetails, getUsers } from '../lib/api/user.api'
+import { getMutualFriends, getUserDetails, getUsers } from '../lib/api/user.api'
 import ProfilePreview from '../components/previews/ProfilePreview'
 import ProfilePreviewSkeleton from '../components/skeleton/ProfilePreviewSkeleton'
 import Profile from '../components/main/Profile'
 import MobileHeader from '../components/layout/MobileHeader'
+import { useLayoutStore } from '../store/layout.store'
 
 
 const Aside = ({ 
@@ -148,15 +149,15 @@ const Aside = ({
     )
   }
 
-const Main = ({ user, group, loading}) => {
+const Main = ({ user, setUser, mutualFriends, group, loading, selectUser}) => {
     return (
       <div className='min-h-screen w-full'>
         <MobileHeader title={user ? "Profile" : "Group"} />
         {
-          user ? <Profile user={user} loading={loading} /> : 
+          user ? <Profile user={user} mutualFriends={mutualFriends} setUser={setUser} loading={loading} onSelect={selectUser} /> : 
           group ? <div>{group}</div> :
           <div className='w-full h-screen flex flex-col items-center justify-center gap-2'>
-            <img src="/assets/profile-interface.svg" alt="profile" className='w-[45%]' />
+            <img src="/assets/profile-interface.svg" className='w-[45%]' />
             <span className='text-xl font-outfit text-light-txt dark:text-dark-txt'> Select a user or group to view their profile!</span>
           </div>
         }
@@ -165,6 +166,7 @@ const Main = ({ user, group, loading}) => {
 }
 
 function DiscoverPage() {
+  const { setMainActive } = useLayoutStore();
 
   /* fetching data and aside states */
   const [loading, setLoading] = useState(false);
@@ -185,6 +187,7 @@ function DiscoverPage() {
   /* main selected states */
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [mutualFriends, setMutualFriends] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
 
   /* aside fetching data functions */
@@ -257,14 +260,22 @@ function DiscoverPage() {
   /* displaying main content functions */
   const selectUser = async (userID) => {
     setSelectedGroup(null);
-    setLoadingProfile(true); 
+    setLoadingProfile(true);
+    setSelectedUser(userID)
+    setMainActive(true); 
     try {
       const res = await getUserDetails(userID);
+      const mut = await getMutualFriends(userID);
+
+      if(mut.mutualFriends) {
+        setMutualFriends(mut.mutualFriends)
+      }
       
       if(res) {
         setSelectedUser(res);
       } else {
         setSelectedUser(null);
+        setMainActive(false)
       }
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -293,8 +304,11 @@ function DiscoverPage() {
       main={
         <Main 
           user={selectedUser}
+          mutualFriends={mutualFriends}
+          setUser={setSelectedUser}
           group={selectedGroup}
           loading={loadingProfile}    
+          selectUser={selectUser}
         />
       } 
     />

@@ -263,8 +263,8 @@ const EditProfile = () => {
       <div className='w-full h-[270px] relative'>
         {/* cover image */}
         {
-          cover ? <img src={cover} alt='cover image' className='w-full h-[200px] object-cover' /> :
-          authUser.cover ? <img src={authUser.cover} alt='cover image' className='w-full h-[200px] object-cover' /> :
+          cover ? <img src={cover} className='w-full h-[200px] object-cover' /> :
+          authUser.cover ? <img src={authUser.cover} className='w-full h-[200px] object-cover' /> :
           <div className='w-full h-[200px] bg-light-300 dark:bg-dark-300'></div> 
         }
         <label 
@@ -285,7 +285,7 @@ const EditProfile = () => {
           />
         </label>
         {/* profile picture */}
-        <img src={profilePic ? profilePic : authUser.profilePic ? authUser.profilePic : "/assets/avatar.svg"} alt="profile pic" className='size-[150px] rounded-[50%] absolute left-8 bottom-0 border-4 border-light-100 dark:border-dark-100' />
+        <img src={profilePic ? profilePic : authUser.profilePic ? authUser.profilePic : "/assets/avatar.svg"} className='size-[150px] rounded-[50%] absolute left-8 bottom-0 border-4 border-light-100 dark:border-dark-100' />
         <label 
           htmlFor='profile-input'
           className='size-10 flex items-center justify-center rounded-[50%] 

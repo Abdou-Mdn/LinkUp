@@ -11,19 +11,22 @@ function SecondaryButton({
     isColored = true,
     leftIcon = null,
     rightIcon = null,
+    toolip=null,
 }) {
   const isDisabled = disabled || loading;
   return (
     <button
         type={type}
+        title={toolip}
         onClick={onClick}
         disabled={isDisabled}
         className={
-            ` ${className} outline-0 text-center rounded-4xl cursor-pointer transition-all font-medium mt-2 border-1 
+            `outline-0 text-center rounded-4xl cursor-pointer transition-all font-medium border-1 
              ${ isDisabled ? 'border-gray-500 bg-gray-500 text-inverted' : 
                 isColored ? 'border-danger text-danger bg-transparent hover:text-inverted hover:bg-danger' :
                 'border-light-txt text-light-txt dark:border-dark-txt dark:text-dark-txt hover:border-danger hover:text-danger'
              }
+             ${className}
             `
         }
     >

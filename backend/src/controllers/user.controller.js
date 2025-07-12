@@ -62,7 +62,6 @@ const getUserDetails = async (req, res) => {
 const getFriends = async (req, res) => {
     try {
         const userID = req.user.userID
-        const name = req.query.name || "";
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
 
@@ -92,11 +91,7 @@ const getFriends = async (req, res) => {
             isDeleted: { $ne: true }
         };
 
-        if (name) {
-            filter.name = { $regex: name, $options: 'i' };
-        }
-
-        const total = await User.countDocuments(filter).notDeleted();
+        const total = await User.countDocuments(filter);
 
         const friends = await User.find(filter)
             .select("userID name profilePic lastSeen")
@@ -197,7 +192,10 @@ const removeFriend = async (req, res) => {
             await Message.deleteMany({ chat: chat.chatID });
         }
 
-        res.status(200).json({ message: "Friend removed successfully." });
+        const { password: pw1, ...userWithoutPassword } = user.toObject();
+        const { password: pw2, ...profileWithoutPassword } = friend.toObject();
+
+        res.status(200).json({ message: "Friend removed successfully.", user: userWithoutPassword, profile: profileWithoutPassword });
 
     } catch (error) {
         console.error("Error in remove friend controller:", error.message);
@@ -551,7 +549,10 @@ const sendFriendRequest = async (req, res) => {
         await receiver.save();
         await sender.save();
 
-        res.status(200).json({ message: "Friend request sent successfully."});
+        const { password: pw1, ...userWithoutPassword } = sender.toObject();
+        const { password: pw2, ...profileWithoutPassword } = receiver.toObject();
+
+        res.status(200).json({ message: "Friend request sent successfully.", user: userWithoutPassword, profile: profileWithoutPassword});
     } catch (error) {
         console.error("Error in send friend request controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
@@ -591,7 +592,10 @@ const cancelFriendRequest = async (req, res) => {
         await sender.save();
         await receiver.save();
 
-        res.status(200).json({ message: "Friend request canceled successfully" });
+        const { password: pw1, ...userWithoutPassword } = sender.toObject();
+        const { password: pw2, ...profileWithoutPassword } = receiver.toObject();
+
+        res.status(200).json({ message: "Friend request canceled successfully", user: userWithoutPassword, profile: profileWithoutPassword });
     } catch (error) {
         console.error("Error in cancel friend request controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
@@ -636,7 +640,11 @@ const acceptFriendRequest = async (req, res) => {
         await currentUser.save();
         await requester.save();
 
-        res.status(200).json({ message: "Friend request accepted" });
+        const { password: pw1, ...userWithoutPassword } = currentUser.toObject();
+        const { password: pw2, ...profileWithoutPassword } = requester.toObject();
+
+
+        res.status(200).json({ message: "Friend request accepted", user: userWithoutPassword, profile: profileWithoutPassword });
 
     } catch (error) {
         console.error("Error in accept friend request controller :", error.message);
@@ -672,7 +680,10 @@ const declineFriendRequest = async (req, res) => {
         await currentUser.save();
         await requester.save();
 
-        res.status(200).json({ message: "Friend request declined" });
+        const { password: pw1, ...userWithoutPassword } = currentUser.toObject();
+        const { password: pw2, ...profileWithoutPassword } = requester.toObject();
+
+        res.status(200).json({ message: "Friend request declined", user: userWithoutPassword, profile: profileWithoutPassword });
 
     } catch (error) {
         console.error("Error in decline friend request controller:", error.message);

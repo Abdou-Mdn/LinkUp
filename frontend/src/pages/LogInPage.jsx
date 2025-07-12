@@ -162,7 +162,7 @@ function LogInPage() {
         <h2 className='text-xl font-semibold text-center text-light-txt'>
           Your Conversations, All in One Place
         </h2>
-        <img src="/assets/Chatting-friend.gif" alt="chatting with friend gif" className='w-[70%]' />
+        <img src="/assets/Chatting-friend.gif" className='w-[70%]' />
         <span className='text-center text-light-txt2'>
           Sign in to continue your conversations and catch up with your messages.
         </span>
