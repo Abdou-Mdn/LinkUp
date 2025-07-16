@@ -7,7 +7,7 @@ import ProfileSkeleton from '../skeleton/ProfileSkeleton';
 import ProfilePreview from '../previews/ProfilePreview';
 
 
-const Profile = ({ user, mutualFriends, setUser, loading, onSelect, updateRequestList}) => {
+const Profile = ({ user, mutualFriends = null, setUser, loading, onSelect, updateRequestList}) => {
 
   if(loading || !user) {
     return  <ProfileSkeleton />

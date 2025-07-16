@@ -8,6 +8,7 @@ import ProfilePreviewSkeleton from '../components/skeleton/ProfilePreviewSkeleto
 import Profile from '../components/main/Profile'
 import MobileHeader from '../components/layout/MobileHeader'
 import { useLayoutStore } from '../store/layout.store'
+import { useAuthStore } from '../store/auth.store'
 
 
 const Aside = ({ 
@@ -166,6 +167,7 @@ const Main = ({ user, setUser, mutualFriends, group, loading, selectUser}) => {
 }
 
 function DiscoverPage() {
+  const { authUser } = useAuthStore()
   const { setMainActive } = useLayoutStore();
 
   /* fetching data and aside states */
@@ -265,10 +267,12 @@ function DiscoverPage() {
     setMainActive(true); 
     try {
       const res = await getUserDetails(userID);
-      const mut = await getMutualFriends(userID);
-
-      if(mut.mutualFriends) {
-        setMutualFriends(mut.mutualFriends)
+      if(userID !== authUser.userID) {
+        const mut = await getMutualFriends(userID);
+        
+        if(mut?.mutualFriends) {
+          setMutualFriends(mut.mutualFriends)
+        }
       }
       
       if(res) {
