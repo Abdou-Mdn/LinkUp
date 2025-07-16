@@ -269,10 +269,11 @@ const EditProfile = () => {
         }
         <label 
           htmlFor='cover-input'
+          title='Change cover'
           className='size-10 flex items-center justify-center rounded-[50%] 
-          absolute right-8 top-[180px] cursor-pointer border-2 border-dark-100 dark:border-light-100
+          absolute right-8 top-[180px] cursor-pointer border-2 border-light-txt dark:border-dark-txt
           bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt
-          hover:bg-dark-100 hover:text-dark-txt dark:hover:bg-light-100 dark:hover:text-light-txt'
+          hover:bg-primary hover:text-inverted hover:border-inverted'
         >
           <PenLine className='size-6' />
           <input 
@@ -288,10 +289,11 @@ const EditProfile = () => {
         <img src={profilePic ? profilePic : authUser.profilePic ? authUser.profilePic : "/assets/avatar.svg"} className='size-[150px] rounded-[50%] absolute left-8 bottom-0 border-4 border-light-100 dark:border-dark-100' />
         <label 
           htmlFor='profile-input'
+          title='Change profile picture'
           className='size-10 flex items-center justify-center rounded-[50%] 
-          absolute left-[140px] bottom-2 cursor-pointer border-2 border-dark-100 dark:border-light-100
+          absolute left-[140px] bottom-2 cursor-pointer border-2 border-light-txt dark:border-dark-txt
           bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt
-          hover:bg-dark-100 hover:text-dark-txt dark:hover:bg-light-100 dark:hover:text-light-txt'
+          hover:bg-primary hover:text-inverted hover:border-inverted'
         >
           <PenLine className='size-6' />
           <input 

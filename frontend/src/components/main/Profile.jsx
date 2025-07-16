@@ -83,7 +83,7 @@ const Profile = ({ user, mutualFriends, setUser, loading, onSelect, updateReques
           </div>
           {/* mutual friends */}
           {
-            mutualFriends.length > 0 && (
+            mutualFriends?.length > 0 && (
               <div className='w-full lg:w-1/2 flex flex-col  px-3 lg:px-8'>
                 <div className='flex gap-2 items-center justify-between py-2'>
                   <p className='flex gap-2 items-center'>

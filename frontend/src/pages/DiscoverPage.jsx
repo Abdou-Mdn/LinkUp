@@ -71,7 +71,7 @@ const Aside = ({
               Start typing to search 
             </div> 
           ) : (
-            <div className='flex-1 w-full flex flex-col overflow-scroll'>
+            <div className='flex-1 w-full flex flex-col overflow-y-scroll'>
                 {/* users */}
                 <div className={`flex-col px-2 ${view == "groups" ? 'hidden' : 'flex'}`}>
                   <div className='flex items-center justify-between w-full'>

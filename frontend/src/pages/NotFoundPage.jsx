@@ -2,7 +2,7 @@ import React from 'react'
 
 function NotFoundPage() {
   return (
-    <div>NotFoundPage</div>
+    <div className='w-full h-screen bg-accent flex items-center justify-center'>NotFoundPage</div>
   )
 }
 

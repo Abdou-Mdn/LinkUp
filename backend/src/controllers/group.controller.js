@@ -185,8 +185,8 @@ const createGroup = async (req, res) => {
         }
 
         // check if one member or more are added
-        if (!Array.isArray(members) || members.length < 1) {
-            return res.status(400).json({ message: "At least one other member is required to create a group" });
+        if (!Array.isArray(members) || members.length < 2) {
+            return res.status(400).json({ message: "At least two other members are required to create a group" });
         }
 
         // remove duplicates and ensure creator is not re-added
@@ -218,7 +218,7 @@ const updateGroup = async (req, res) => {
     try {
         const userID = req.user.userID;
         const groupID = parseInt(req.params.groupID);
-        const { name, image, description } = req.body;
+        const { name, image, banner, description } = req.body;
 
         const admin = await User.findOne({userID: userID, isDeleted: { $ne: true }});
         const group = await Group.findOne({ groupID });
@@ -248,6 +248,13 @@ const updateGroup = async (req, res) => {
                 folder: "groups"
             });
             group.image = uploadResponse.secure_url;
+        }
+        if(banner) {
+            // uploading the banner to cloudinary first
+            const uploadResponse = await cloudinary.uploader.upload(banner, {
+                folder: "groups"
+            });
+            group.banner = uploadResponse.secure_url;
         }
 
         const updatedGroup = await group.save();

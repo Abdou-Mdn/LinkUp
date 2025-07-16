@@ -23,6 +23,10 @@ const groupSchema = new mongoose.Schema({
         user: {type: Number, ref: "User"},
         joinedAt: Date
     }],
+    banner: {
+        type: String,
+        default: ''
+    },
     admins: [{
         type: Number,
         ref: "User"
