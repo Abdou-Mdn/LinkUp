@@ -38,6 +38,69 @@ const getGroups = async (req, res) => {
     }
 }
 
+const getAdminGroups = async (req, res) => {
+    try {
+        const userID = req.user.userID;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+
+        // select only groups where i am admin
+        const filter = { admins: userID };
+
+        const total = await Group.countDocuments(filter);
+
+        const groups = await Group.find(filter)
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .select("groupID name image members createdAt");
+
+        res.json({
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+            totalResults: total,
+            groups
+        });
+
+    } catch (error) {
+        console.error("Error in getAdminGroups controller:", error.message);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+const getMemberGroups = async (req, res) => {
+    try {
+        const userID = req.user.userID;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+
+        // select all the groups where i am only a member and not admin
+        const filter = {
+            "members.user": userID,
+            admins: { $ne: userID }
+        };
+
+        const total = await Group.countDocuments(filter);
+
+        const groups = await Group.find(filter)
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .select("groupID name image members createdAt");
+
+        res.json({
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+            totalResults: total,
+            groups
+        });
+
+    } catch (error) {
+        console.error("Error in getMemberGroups controller:", error.message);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
 const getGroupDetails = async (req, res) => {
     try {
         const groupID = parseInt(req.params.groupID);
@@ -174,12 +237,6 @@ const createGroup = async (req, res) => {
         const creatorID = req.user.userID;
         const { name, members } = req.body
 
-        const creator = await User.findOne({userID: creatorID, isDeleted: { $ne: true }});
-
-        if(!creator) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
         if(!name || name.trim() === "") {
             return res.status(400).json({"message": "Group name is required"});
         }
@@ -187,6 +244,12 @@ const createGroup = async (req, res) => {
         // check if one member or more are added
         if (!Array.isArray(members) || members.length < 2) {
             return res.status(400).json({ message: "At least two other members are required to create a group" });
+        }
+
+        const creator = await User.findOne({userID: creatorID, isDeleted: { $ne: true }});
+
+        if(!creator) {
+            return res.status(404).json({ message: "User not found" });
         }
 
         // remove duplicates and ensure creator is not re-added
@@ -204,8 +267,33 @@ const createGroup = async (req, res) => {
             admins: [creatorID]
         });
 
-
         const savedGroup = await newGroup.save();
+        
+        // create a chat for the group
+        const chat = new Chat({
+            isGroup: true,
+            group: savedGroup.groupID,
+            participants: [creatorID, ...uniqueMemberIDs],
+            updatedAt: new Date()
+        });
+
+        const savedChat = await chat.save();
+
+        // send creation announcement message
+        const message = new Message({
+            chatID: savedChat.chatID,
+            sender: creatorID,
+            text: "created the group",
+            isAnnouncement: true
+        });
+
+        const savedMessage = await message.save();
+
+        savedChat.lastMessage = savedMessage.messageID;
+        savedChat.updatedAt = new Date();
+
+        await savedChat.save();
+        
         res.status(201).json({ group: savedGroup});
 
     } catch (error) {
@@ -234,13 +322,20 @@ const updateGroup = async (req, res) => {
         if (!group.admins.includes(userID)) {
             return res.status(403).json({ message: "Only group admins can update the group" });
         }
+
+        // track which updates are applied 
+        let updates = [];
         
-        if(name) group.name = name;
-        if(description != undefined) {
+        if(name && name != group.name) {
+            group.name = name;
+            updates.push("name");
+        } 
+        if(description != undefined && description != group.description) {
             if (description.length > 150) {
                 return res.status(400).json({ message: "Description must be 150 characters or fewer" });
             }
             group.description = description;
+            updates.push("description");
         } 
         if(image) {
             // uploading the pic to cloudinary first
@@ -248,6 +343,7 @@ const updateGroup = async (req, res) => {
                 folder: "groups"
             });
             group.image = uploadResponse.secure_url;
+            updates.push("image")
         }
         if(banner) {
             // uploading the banner to cloudinary first
@@ -255,10 +351,42 @@ const updateGroup = async (req, res) => {
                 folder: "groups"
             });
             group.banner = uploadResponse.secure_url;
+            updates.push("banner");
         }
 
+        if(updates.length == 0) {
+            return res.status(400).json({ message: "No valid changes provided." });
+        }
+
+        // find corresponding chat
+        const chat = await Chat.findOne({ group: groupID });
+        if (!chat) return res.status(500).json({ message: "Associated chat not found" });
+
+        // send announcement message
+        let announcement = "";
+        if(updates.length == 1) {
+            announcement = `updated the group's ${updates[0]}`
+        } else {
+            announcement = `updated the group's details`
+        }
+
+        const message = new Message({
+            chatID: chat.chatID,
+            sender: userID,
+            text: announcement,
+            isAnnouncement: true
+        });
+
+        const savedMessage = await message.save();
+
+        chat.lastMessage = savedMessage.messageID;
+        chat.updatedAt = new Date();
+        await chat.save();
+
+        // send response
         const updatedGroup = await group.save();
-        res.json({ message: "Group is updated successfully", group: updatedGroup }); 
+        res.json({ message: "Group is updated successfully", group: updatedGroup });
+
     } catch (error) {
         console.error("Error in update group controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
@@ -344,10 +472,25 @@ const addMember = async (req, res) => {
 
         await group.save();
 
-        await Chat.updateOne(
+        const chat = await Chat.findOneAndUpdate(
             { group: groupID },
             { $addToSet: { participants: memberID } }
         );
+
+        if (!chat) return res.status(500).json({ message: "Associated chat not found" });
+
+        const message = new Message({
+            chatID: chat.chatID,
+            sender: adminID,
+            text: `added ${member.name} to the group`,
+            isAnnouncement: true
+        });
+
+        const savedMessage = await message.save();
+
+        chat.lastMessage = savedMessage.messageID;
+        chat.updatedAt = new Date();
+        await chat.save();
 
         res.status(200).json({ message: "Member added successfully"});        
 
@@ -396,10 +539,25 @@ const removeMember = async (req, res) => {
 
         await group.save();
 
-        await Chat.updateOne(
+        const chat = await Chat.findOneAndUpdate(
             { group: groupID },
             { $pull: { participants: memberID } }
         );
+
+        if (!chat) return res.status(500).json({ message: "Associated chat not found" });
+
+        const message = new Message({
+            chatID: chat.chatID,
+            sender: adminID,
+            text: `removed ${member.name} from the group`,
+            isAnnouncement: true
+        });
+
+        const savedMessage = await message.save();
+
+        chat.lastMessage = savedMessage.messageID;
+        chat.updatedAt = new Date();
+        await chat.save();
 
         res.status(200).json({ message: "Member removed successfully"});        
 
@@ -449,10 +607,90 @@ const addAdmin = async (req, res) => {
         group.admins.push(newAdminID);
 
         await group.save();
+
+        const chat = await Chat.findOne({ group: groupID });
+
+        if (!chat) return res.status(500).json({ message: "Associated chat not found" });
+
+        const message = new Message({
+            chatID: chat.chatID,
+            sender: adminID,
+            text: `promoted ${newAdmin.name} to admin`,
+            isAnnouncement: true
+        });
+
+        const savedMessage = await message.save();
+
+        chat.lastMessage = savedMessage.messageID;
+        chat.updatedAt = new Date();
+        await chat.save();
+
         res.status(200).json({ message: "Admin added successfully"});        
 
     } catch (error) {
         console.error("Error in add admin controller:", error.message);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+const removeAdmin = async (req, res) => {
+    try {
+        const adminID = req.user.userID;
+        const targetUserID = parseInt(req.params.userID);
+        const groupID = parseInt(req.params.groupID);
+
+        const admin = await User.findOne({ userID: adminID, isDeleted: { $ne: true } });
+        const targetUser = await User.findOne({ userID: targetUserID, isDeleted: { $ne: true } });
+        const group = await Group.findOne({ groupID }).select("members admins");
+
+        if (!admin || !targetUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        if (!group) {
+            return res.status(404).json({ message: "Group not found" });
+        }
+
+        // Check if requester is admin
+        if (!group.admins.includes(adminID)) {
+            return res.status(403).json({ message: "Only admin can remove other admins" });
+        }
+
+        // Check if target is an admin
+        if (!group.admins.includes(targetUserID)) {
+            return res.status(400).json({ message: "User is not an admin" });
+        }
+
+        // Prevent removing the last admin
+        if (group.admins.length === 1 && group.admins[0] === targetUserID) {
+            return res.status(400).json({ message: "Cannot remove the only remaining admin" });
+        }
+
+        // Remove from admins
+        group.admins = group.admins.filter(a => a !== targetUserID);
+        await group.save();
+
+        const chat = await Chat.findOne({ group: groupID });
+
+        if (!chat) return res.status(500).json({ message: "Associated chat not found" });
+
+        const message = new Message({
+            chatID: chat.chatID,
+            sender: adminID,
+            text: `removed ${targetUser.name} from admin role`,
+            isAnnouncement: true
+        });
+
+        const savedMessage = await message.save();
+
+        chat.lastMessage = savedMessage.messageID;
+        chat.updatedAt = new Date();
+        await chat.save();
+
+        res.status(200).json({ message: "User demoted from admin successfully" });
+
+    } catch (error) {
+        console.error("Error in removeAdmin controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
     }
 }
@@ -503,16 +741,50 @@ const leaveGroup = async (req, res) => {
         }
 
         // check if all admins left the group then assign another member as the new admin
+        let newAdmin = null;
         if(group.admins.length == 0) {
-            group.admins.push(group.members[0].user);
+            newAdmin = group.members[0].user;
+            group.admins.push(newAdmin);
         }
 
         await group.save();
 
-        await Chat.updateOne(
+        const chat = await Chat.findOneAndUpdate(
             { group: groupID },
             { $pull: { participants: userID } }
         );
+
+        if (!chat) return res.status(500).json({ message: "Associated chat not found" });
+
+        const message = new Message({
+            chatID: chat.chatID,
+            sender: userID,
+            text: `left the group`,
+            isAnnouncement: true
+        });
+
+        const savedMessage = await message.save();
+
+        chat.lastMessage = savedMessage.messageID;
+        chat.updatedAt = new Date();
+        await chat.save();
+
+        if(newAdmin) {
+
+            const adminMessage = new Message({
+                chatID: chat.chatID,
+                sender: newAdmin,
+                text: `is now the new admin`,
+                isAnnouncement: true
+            });
+
+            const savedAdminMessage = await adminMessage.save();
+
+            chat.lastMessage = savedAdminMessage.messageID;
+            chat.updatedAt = new Date();
+            await chat.save();
+
+        }
 
         res.status(200).json({ message: "You left the group", groupDeleted: false });
     } catch (error) {
@@ -725,10 +997,25 @@ const acceptJoinRequest = async (req, res) => {
         await group.save();
         await requester.save();
 
-        await Chat.updateOne(
+        const chat = await Chat.findOneAndUpdate(
             { group: groupID },
             { $addToSet: { participants: requesterID } }
         );
+
+        if (!chat) return res.status(500).json({ message: "Associated chat not found" });
+
+        const message = new Message({
+            chatID: chat.chatID,
+            sender: requesterID,
+            text: `joined the group`,
+            isAnnouncement: true
+        });
+
+        const savedMessage = await message.save();
+
+        chat.lastMessage = savedMessage.messageID;
+        chat.updatedAt = new Date();
+        await chat.save();
 
         res.status(200).json({ message: "Join request accepted" });
 
@@ -785,8 +1072,8 @@ const declineJoinRequest = async (req, res) => {
 };
 
 module.exports = {
-    getGroups, getGroupDetails, getGroupMembers, getFriendMembers,
+    getGroups, getGroupDetails, getAdminGroups, getMemberGroups, getGroupMembers, getFriendMembers,
     createGroup, updateGroup, removeGroup,
-    addMember, removeMember, addAdmin, leaveGroup,
+    addMember, removeMember, addAdmin, removeAdmin, leaveGroup,
     getPendingJoinRequests, sendJoinRequest, cancelJoinRequest, acceptJoinRequest, declineJoinRequest
 }

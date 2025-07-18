@@ -8,6 +8,7 @@ const messageSchema = new mongoose.Schema({
     },
     chatID: {
         type: Number,
+        required: true,
         ref: "Chat"
     },
     sender: {
@@ -26,6 +27,10 @@ const messageSchema = new mongoose.Schema({
         type: Number,
         ref: "Group",
         default: null
+    },
+    isAnnouncement: {
+        type: Boolean,
+        default: false
     },
     isEdited: {
         type: Boolean,

@@ -3,9 +3,9 @@ const router = express.Router();
 
 const authMiddleware = require("../middleware/auth.middleware");
 const { 
-    getGroups, getGroupDetails, getGroupMembers, getFriendMembers,
+    getGroups, getGroupDetails, getAdminGroups, getMemberGroups, getGroupMembers, getFriendMembers,
     createGroup, updateGroup, removeGroup,
-    addMember, removeMember, addAdmin, leaveGroup,
+    addMember, removeMember, addAdmin, removeAdmin, leaveGroup,
     getPendingJoinRequests, sendJoinRequest, cancelJoinRequest, acceptJoinRequest, declineJoinRequest, 
     
 } = require("../controllers/group.controller");
@@ -15,11 +15,15 @@ const {
 
 // public routes
 router.get("/search", getGroups);
-router.get("/:groupID", getGroupDetails);
+router.get("/details/:groupID", getGroupDetails);
 
 
 // protected routes 
 router.use(authMiddleware);
+
+// role specific groups
+router.get("/admin-of/", getAdminGroups);
+router.get("/member-of/", getMemberGroups);
 
 // members 
 router.get("/members/:groupID", getGroupMembers);
@@ -35,6 +39,7 @@ router.post("/:groupID/members/:userID", addMember);
 router.delete("/:groupID/members/:userID", removeMember);
 
 router.post("/:groupID/admins/:userID", addAdmin);
+router.delete("/:groupID/admins/:userID", removeAdmin);
 router.post("/leave/:groupID", leaveGroup);
 
 // requests
