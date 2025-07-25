@@ -27,7 +27,7 @@ router.delete("/friend/:userID",  removeFriend);
 // requests
 router.get("/requests/recieved", getPendingFriendRequests);
 router.get("/requests/sent", getSentFriendRequests);
-router.get("/request/sent/groups", getSentJoinRequests);
+router.get("/requests/sent/groups", getSentJoinRequests);
 router.post("/request/:userID",  sendFriendRequest);
 router.delete("/request/cancel/:userID", cancelFriendRequest);
 router.post("/request/accept/:userID",  acceptFriendRequest);

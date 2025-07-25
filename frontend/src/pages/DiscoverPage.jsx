@@ -9,6 +9,8 @@ import Profile from '../components/main/Profile'
 import MobileHeader from '../components/layout/MobileHeader'
 import { useLayoutStore } from '../store/layout.store'
 import { useAuthStore } from '../store/auth.store'
+import { getGroups } from '../lib/api/group.api'
+import GroupPreview from '../components/previews/GroupPreview'
 
 
 const Aside = ({ 
@@ -130,11 +132,14 @@ const Aside = ({
                         No groups found 
                       </div> 
                     ) : 
-                      <ul className='p-2 bg-danger'>
-                        <li>group</li>
-                        <li>group</li>
+                      <ul>
                         {
-                          loadingMore && <div>Loading more groupss</div>
+                          view == "both" ? 
+                          groups.slice(0,4).map(group => <GroupPreview key={group.groupID} group={group} />) :
+                          groups.map(group => <GroupPreview key={group.groupID} group={group} />) 
+                        }
+                        {
+                          loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
                         }
                         { 
                           view == "groups" && <div ref={groupsLoaderRef}></div>
@@ -184,7 +189,7 @@ function DiscoverPage() {
   const [hasMoreUsers, setHasMoreUsers] = useState(false);
   const [hasMoreGroups, setHasMoreGroups] = useState(false);
   
-  const limit = 7;
+  const limit = 10;
 
   /* main selected states */
   const [loadingProfile, setLoadingProfile] = useState(false);
@@ -199,17 +204,15 @@ function DiscoverPage() {
 
       if(reset) {
         userRes = await getUsers(name,reset, usersPage, limit);
-        // group api call here
+        groupRes = await getGroups(name, reset, groupsPage, limit)
       } else {
         // separate api calls based on view
         if(view == "users" && hasMoreUsers) {
           userRes = await getUsers(name,reset, usersPage, limit);
         } else if(view == "groups" && hasMoreGroups) {
-          // group api call here
+          groupRes = await getGroups(name, reset, groupsPage, limit)
         }
       }
-
-      console.log(userRes)
       
       if(userRes?.users) {
         const newUsers = userRes.users;
@@ -220,6 +223,14 @@ function DiscoverPage() {
         setUsersPage(reset ? 2 : usersPage + 1);
       }
       
+      if(groupRes?.groups) {
+        const newGroups = groupRes.groups;
+        const groupsTotalPages = groupRes.totalPages
+
+        setGroups(prev => reset ? newGroups : [...prev, ...newGroups]);
+        setHasMoreGroups((reset ? 1 : groupsPage) < groupsTotalPages);
+        setGroupsPage(reset ? 2 : groupsPage + 1);
+      }
 
     } catch (error) {
       console.log("error in fetching users and groups", error);

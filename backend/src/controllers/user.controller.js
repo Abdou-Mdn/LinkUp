@@ -94,7 +94,7 @@ const getFriends = async (req, res) => {
         const total = await User.countDocuments(filter);
 
         const friends = await User.find(filter)
-            .select("userID name profilePic lastSeen")
+            .select("userID name profilePic lastSeen friends")
             .sort({ name: 1 }) // sorting the results alphabetically 
             .skip((page - 1) * limit)
             .limit(limit);
