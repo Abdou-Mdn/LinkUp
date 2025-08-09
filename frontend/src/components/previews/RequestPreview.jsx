@@ -2,11 +2,12 @@ import React, { useState } from 'react'
 import { timeSince } from '../../lib/util/timeFormat'
 import PrimaryButton from '../PrimaryButton'
 import SecondaryButton from '../SecondaryButton'
+import TertiaryButton from '../TertiaryButton'
 import { UserCheck, UserX, X } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest } from '../../lib/api/user.api'
 
-const RequestPreview = ({request, isSent, onClick, onUpdate}) => {
+const RequestPreview = ({request, isSent, onClick, onCancel, onAccept, onDecline}) => {
     const { setAuthUser } = useAuthStore();
     const [loading, setLoading] = useState(false);
 
@@ -14,9 +15,8 @@ const RequestPreview = ({request, isSent, onClick, onUpdate}) => {
 
         setLoading(true);
         const res = await cancelFriendRequest(request.userID);
-        if(res?.user) {
-            setAuthUser(res.user);
-            onUpdate(request.userID, res.profile);
+        if(res?.user && onCancel) {
+           onCancel(res.user, res.profile);
         }
         setLoading(false);
     }
@@ -24,9 +24,8 @@ const RequestPreview = ({request, isSent, onClick, onUpdate}) => {
     const acceptRequest = async () => {
         setLoading(true);
         const res = await acceptFriendRequest(request.userID);
-        if(res?.user) {
-            setAuthUser(res.user);
-            onUpdate(request.userID, res.profile);
+        if(res?.user && onAccept) {
+            onAccept(res.user, res.profile);
         }
         setLoading(false);
     }
@@ -34,9 +33,8 @@ const RequestPreview = ({request, isSent, onClick, onUpdate}) => {
     const declineRequest = async () => {
         setLoading(true);
         const res = await declineFriendRequest(request.userID);
-        if(res?.user) {
-            setAuthUser(res.user);
-            onUpdate(request.userID, res.profile);
+        if(res?.user && onCancel) {
+            onCancel(res.user, res.profile);
         }
         setLoading(false);
     }
@@ -61,9 +59,9 @@ const RequestPreview = ({request, isSent, onClick, onUpdate}) => {
             isSent ? (
                 <div className='flex items-center justify-center gap-2'>
                     <SecondaryButton 
-                        leftIcon={<X className='size-4' />} 
+                        leftIcon={<X className='size-6' />} 
                         toolip="Cancel" 
-                        className='p-2 rounded-lg mt-0' 
+                        className='p-1 rounded-lg mt-0' 
                         isColored={false}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -74,10 +72,10 @@ const RequestPreview = ({request, isSent, onClick, onUpdate}) => {
                 </div>
             ) : (
                 <div className='flex items-center gap-2'>
-                    <PrimaryButton 
-                        leftIcon={<UserCheck className='size-4' />} 
+                    <TertiaryButton 
+                        leftIcon={<UserCheck className='size-6' />} 
                         toolip="Accept" 
-                        className='p-2 rounded-lg'
+                        className='p-1 rounded-lg'
                         onClick={(e) => {
                             e.stopPropagation();
                             acceptRequest()
@@ -85,9 +83,9 @@ const RequestPreview = ({request, isSent, onClick, onUpdate}) => {
                         disabled={loading} 
                     />
                     <SecondaryButton 
-                        leftIcon={<UserX className='size-4' />} 
+                        leftIcon={<UserX className='size-6' />} 
                         toolip="Decline" 
-                        className='p-2 rounded-lg'
+                        className='p-1 rounded-lg'
                         onClick={(e) => {
                             e.stopPropagation();
                             declineRequest();

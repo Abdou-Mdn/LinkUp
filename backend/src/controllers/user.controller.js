@@ -195,7 +195,11 @@ const removeFriend = async (req, res) => {
         const { password: pw1, ...userWithoutPassword } = user.toObject();
         const { password: pw2, ...profileWithoutPassword } = friend.toObject();
 
-        res.status(200).json({ message: "Friend removed successfully.", user: userWithoutPassword, profile: profileWithoutPassword });
+        res.status(200).json({ 
+            message: "Friend removed successfully.", 
+            user: userWithoutPassword, 
+            profile: profileWithoutPassword 
+        });
 
     } catch (error) {
         console.error("Error in remove friend controller:", error.message);
@@ -534,16 +538,17 @@ const sendFriendRequest = async (req, res) => {
             return res.status(400).json({ message: "Friend request already sent." });
         }
 
+        const date = new Date();
         // add friend request to receiver
         receiver.friendRequests.push({
             user: senderID,
-            requestedAt: new Date()
+            requestedAt: date,
         });
 
         // add request to sender
         sender.sentFriendRequests.push({
             user: receiverID,
-            requestedAt: new Date()
+            requestedAt: date,
         }) 
 
         await receiver.save();
@@ -552,7 +557,11 @@ const sendFriendRequest = async (req, res) => {
         const { password: pw1, ...userWithoutPassword } = sender.toObject();
         const { password: pw2, ...profileWithoutPassword } = receiver.toObject();
 
-        res.status(200).json({ message: "Friend request sent successfully.", user: userWithoutPassword, profile: profileWithoutPassword});
+        res.status(200).json({ 
+            message: "Friend request sent successfully.", 
+            user: userWithoutPassword, 
+            profile: {...profileWithoutPassword, requestedAt: date}
+        });
     } catch (error) {
         console.error("Error in send friend request controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
@@ -595,7 +604,11 @@ const cancelFriendRequest = async (req, res) => {
         const { password: pw1, ...userWithoutPassword } = sender.toObject();
         const { password: pw2, ...profileWithoutPassword } = receiver.toObject();
 
-        res.status(200).json({ message: "Friend request canceled successfully", user: userWithoutPassword, profile: profileWithoutPassword });
+        res.status(200).json({ 
+            message: "Friend request canceled successfully", 
+            user: userWithoutPassword, 
+            profile: profileWithoutPassword 
+        });
     } catch (error) {
         console.error("Error in cancel friend request controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
@@ -628,8 +641,9 @@ const acceptFriendRequest = async (req, res) => {
         }
 
         // add each other to friends
-        currentUser.friends.push({ user: requesterID, friendsSince: new Date() });
-        requester.friends.push({ user: currentUserID, friendsSince: new Date() });
+        const date = new Date();
+        currentUser.friends.push({ user: requesterID, friendsSince: date });
+        requester.friends.push({ user: currentUserID, friendsSince: date });
 
         // remove the friend request from the current user's array
         currentUser.friendRequests = currentUser.friendRequests.filter(r => r.user !== requesterID);
@@ -644,7 +658,11 @@ const acceptFriendRequest = async (req, res) => {
         const { password: pw2, ...profileWithoutPassword } = requester.toObject();
 
 
-        res.status(200).json({ message: "Friend request accepted", user: userWithoutPassword, profile: profileWithoutPassword });
+        res.status(200).json({ 
+            message: "Friend request accepted", 
+            user: userWithoutPassword, 
+            profile: {...profileWithoutPassword, friendsSince: date} 
+        });
 
     } catch (error) {
         console.error("Error in accept friend request controller :", error.message);

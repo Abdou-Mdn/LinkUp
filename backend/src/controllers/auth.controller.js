@@ -79,8 +79,20 @@ const login = async (req,res) => {
     }
 }
 
-const logout = (req,res) => {
+const logout = async (req,res) => {
     try {
+        const userID = req.user.userID;
+
+        const user = await User.findOne({userID, isDeleted: { $ne: true }});
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        // updating lastSeen
+        user.lastSeen = new Date();
+        await user.save();
+
         // deleting the cookie
         res.cookie("jwt","",{maxAge: 0});
         res.status(200).json({"message": "Logged out seccussfully "});

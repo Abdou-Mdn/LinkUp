@@ -1,6 +1,6 @@
 import React from 'react'
 import { useAuthStore } from '../../store/auth.store'
-import { formatDateWithSuffix } from '../../lib/util/timeFormat'
+import { formatDateWithSuffix, timeSince } from '../../lib/util/timeFormat'
 
 const ProfilePreview = ({user, onClick = () => {}}) => {
   const { authUser } = useAuthStore();
@@ -13,7 +13,11 @@ const ProfilePreview = ({user, onClick = () => {}}) => {
     const isFriends = authUser.friends.some(f => f.user == user.userID);
 
     if(isFriends) {
-      additionalInfo = "Last seen .. ago"
+      if(user.lastSeen) {
+        additionalInfo = `Last seen ${timeSince(user.lastSeen)}`;
+      } else {
+        additionalInfo = "Last seen .. ago"
+      }
     } else {
       const authFriends = authUser.friends.map(f => f.user);
       const userFriends = user.friends.map(f => f.user);

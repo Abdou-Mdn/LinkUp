@@ -5,12 +5,57 @@ import { formatDateWithSuffix } from '../../lib/util/timeFormat'
 import ProfileButtons from '../ProfileButtons'
 import ProfileSkeleton from '../skeleton/ProfileSkeleton';
 import ProfilePreview from '../previews/ProfilePreview';
+import { useAuthStore } from '../../store/auth.store';
 
 
-const Profile = ({ user, mutualFriends = null, setUser, loading, onSelect, updateRequestList}) => {
+const Profile = ({ user, mutualFriends = null, setUser, loading, onSelect, updateFriends, updateFriendRequests, updateSentRequests}) => {
+  const { setAuthUser } = useAuthStore();
 
   if(loading || !user) {
     return  <ProfileSkeleton />
+  }
+
+  const onAdd = (user, profile) => {
+    setAuthUser(user);
+    setUser(profile);
+    if(updateSentRequests) {
+      updateSentRequests(prev => [...prev, profile]);
+    }
+  }
+
+  const onCancel = (user, profile) => {
+    setAuthUser(user);
+    setUser(profile);
+    if(updateSentRequests){
+      updateSentRequests(prev => prev.filter(r => r.userID !== profile.userID));
+    }
+  }
+
+  const onAccept = (user, profile) => {
+    setAuthUser(user);
+    setUser(profile);
+    if(updateFriendRequests) {
+      updateFriendRequests(prev => prev.filter(r => r.userID !== profile.userID));
+    }
+    if(updateFriends){
+      updateFriends(prev => [...prev, profile]);
+    }
+  }
+
+  const onDecline = (user, profile) => {
+    setAuthUser(user);
+    setUser(profile);
+    if(updateFriendRequests) {
+      updateFriendRequests(prev => prev.filter(r => r.userID !== profile.userID));
+    }
+  }
+
+  const onUnfriend = (user, profile) => {
+    setAuthUser(user);
+    setUser(profile);
+    if(updateFriends) {
+      updateFriends(prev => prev.filter(f => f.userID !== profile.userID));
+    }
   }
 
   return (
@@ -29,7 +74,15 @@ const Profile = ({ user, mutualFriends = null, setUser, loading, onSelect, updat
         <div className='w-full p-3 mb-2 lg:pl-10 relative'>
           <span className='text-2xl font-bold'>{user.name}</span>
           {/* action buttons */}
-          <ProfileButtons user={user} setUser={setUser} updateRequestList={updateRequestList} />
+          <ProfileButtons 
+            user={user} 
+            setUser={setUser} 
+            onAdd={onAdd}
+            onCancel={onCancel}
+            onAccept={onAccept}
+            onDecline={onDecline}
+            onUnfriend={onUnfriend} 
+          />
           <p className='mt-1 text-light-txt2 dark:text-dark-txt2 w-[75%] min-w-[350px]'>{user.bio}</p>
         </div>
         {/* additional infos */}

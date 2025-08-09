@@ -14,7 +14,7 @@ import SentJoinRequestPreview from '../components/previews/SentJoinRequestPrevie
 const Aside = ({
   activeTab, setActiveTab, view, setView, setIsModalActive,
   memberGroups, adminGroups, requests, setRequests, loadMore, loading, loadingMore,
-  selectGroup, setGroup
+  selectedGroup, selectGroup, setGroup
 }) => {
 
   const memberLoaderRef = useRef(null);
@@ -40,8 +40,8 @@ const Aside = ({
   }, [view, activeTab, loading, loadingMore]);
 
   const onCancelRequest = (group) => {
-    setGroup(group);
     setRequests(prev => prev.filter(r => r.groupID !== group.groupID));
+    if(selectedGroup.groupID == group.groupID) setGroup(group);
   }
 
   return (
@@ -55,7 +55,7 @@ const Aside = ({
           }`}
           onClick={() => setActiveTab("groups")}
         >
-          Groups
+          My Groups
         </div>
         <div title='Sent Requests' className={`flex-1 py-3 text-sm font-outfit font-medium text-center cursor-pointer border-b-2 truncate
           ${activeTab == "requests" ? 'text-primary border-primary border-b-4' : 
@@ -326,7 +326,7 @@ function GroupsPage() {
   useEffect(() => {
     setLoading(true);
     fetchData(true);
-  },[view, activeTab]);
+  },[activeTab]);
 
   const loadMore = async () => {
     if(!loading && !loadingMore) {
@@ -431,6 +431,7 @@ function GroupsPage() {
             loadMore={loadMore}
             loading={loading}
             loadingMore={loadingMore}
+            selectedGroup={selectedGroup}
             selectGroup={selectGroup}
             setGroup={setSelectedGroup}
           />

@@ -9,12 +9,15 @@ import RequestPreviewSkeleton from '../components/skeleton/RequestPreviewSkeleto
 import { useLayoutStore } from '../store/layout.store'
 import MobileHeader from '../components/layout/MobileHeader'
 import Profile from '../components/main/Profile'
+import { useAuthStore } from '../store/auth.store'
 
 const Aside = ({
   activeTab, setActiveTab,
   friends, friendRequests, sentRequests,
-  loading, loadingMore, loadMore, selectUser, onUpdate
+  loading, loadingMore, loadMore, selectedUser, setUser, selectUser,
+  updateFriends, updateFriendRequests, updateSentRequests
 }) => {
+  const { setAuthUser } = useAuthStore();
 
   const friendsLoaderRef = useRef(null);
   const requestsLoaderRef = useRef(null);
@@ -37,6 +40,31 @@ const Aside = ({
 
     return () => observer.disconnect();
   }, [activeTab, loading, loadingMore]);
+
+  const onCancel = (user, profile) => {
+    setAuthUser(user);
+    if(selectedUser.userID == profile.userID) {
+      setUser(profile);
+    }
+    updateSentRequests(prev => prev.filter(r => r.userID !== profile.userID));
+  }
+
+  const onAccept = (user, profile) => {
+    setAuthUser(user);
+    if(selectedUser.userID == profile.userID) {
+      setUser(profile);
+    }
+    updateFriendRequests(prev => prev.filter(r => r.userID !== profile.userID));
+    updateFriends(prev => [...prev, profile]);
+  }
+
+  const onDecline = (user, profile) => {
+    setAuthUser(user);
+    if(selectedUser.userID == profile.userID) {
+      setUser(profile);
+    }
+    updateFriendRequests(prev => prev.filter(r => r.userID !== profile.userID));
+  }
 
   return (
     <div className='w-full h-screen flex flex-col items-center
@@ -116,7 +144,14 @@ const Aside = ({
                 
                 {
                   friendRequests.map(req => (
-                    <RequestPreview key={req.userID} request={req} isSent={false} onClick={selectUser} onUpdate={onUpdate} />
+                    <RequestPreview 
+                      key={req.userID} 
+                      request={req} 
+                      isSent={false} 
+                      onClick={selectUser}  
+                      onAccept={onAccept}
+                      onDecline={onDecline}
+                    />
                   ))
                 }
                 {
@@ -145,7 +180,13 @@ const Aside = ({
               <ul>
                 {
                   sentRequests.map(req => (
-                    <RequestPreview key={req.userID} request={req} isSent={true} onClick={selectUser} onUpdate={onUpdate} />
+                    <RequestPreview 
+                      key={req.userID} 
+                      request={req} 
+                      isSent={true} 
+                      onClick={selectUser} 
+                      onCancel={onCancel} 
+                    />
                   ))
                 }
                 {
@@ -162,7 +203,7 @@ const Aside = ({
 }
 
 
-const Main = ({user,mutualFriends, setUser, loading, selectUser, updateRequestList}) => {
+const Main = ({user,mutualFriends, setUser, loading, selectUser, updateFriends, updateFriendRequests, updateSentRequests}) => {
   return (
       <div className='min-h-screen w-full'>
         <MobileHeader title={user ? "Profile" : "Group"} />
@@ -174,7 +215,9 @@ const Main = ({user,mutualFriends, setUser, loading, selectUser, updateRequestLi
               setUser={setUser} 
               loading={loading} 
               onSelect={selectUser} 
-              updateRequestList={updateRequestList}
+              updateFriends={updateFriends}
+              updateFriendRequests={updateFriendRequests}
+              updateSentRequests={updateSentRequests}
             />
           ) : (
             <div className='w-full h-screen flex flex-col items-center justify-center gap-2'>
@@ -285,21 +328,6 @@ function FriendsPage() {
       setLoadingMore(true);
       fetchData();
     }
-  } 
-
-  const updateRequestList = (userID, profile) => {
-    let newList = [];
-    if(activeTab == "requests") {
-      newList = [...friendRequests].filter(req => req.userID !== userID);
-      setFriendRequests(newList);
-    } else {
-      newList = [...sentRequests].filter(req => req.userID !== userID);
-      setSentRequests(newList)
-    }
-
-    if(selectedUser.userID === userID) {
-      setSelectedUser(profile);
-    }
   }
 
   const selectUser = async (userID) => {
@@ -339,18 +367,24 @@ function FriendsPage() {
           loading={loading}
           loadingMore={loadingMore}
           loadMore={loadMore}
+          selectedUser={selectedUser}
+          setUser={setSelectedUser}
           selectUser={selectUser}
-          onUpdate={updateRequestList}
+          updateFriends={setFriends}
+          updateFriendRequests={setFriendRequests}
+          updateSentRequests={setSentRequests}
         />
       }
       main={
         <Main 
           user={selectedUser}
-          mutualFriends={mutualFriends}
           setUser={setSelectedUser}
+          mutualFriends={mutualFriends}
           loading={loadingProfile}    
           selectUser={selectUser}
-          updateRequestList={updateRequestList}
+          updateFriends={setFriends}
+          updateFriendRequests={setFriendRequests}
+          updateSentRequests={setSentRequests}
         />
       }
     />  
