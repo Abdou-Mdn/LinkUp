@@ -2,6 +2,7 @@ const Group = require("../models/group.model");
 const User = require("../models/user.model");
 const Chat = require("../models/chat.model");
 const Message = require("../models/message.model");
+const cloudinary = require("../lib/cloudinary")
 
 /* ********* getting details ********* */
 
@@ -105,8 +106,7 @@ const getGroupDetails = async (req, res) => {
     try {
         const groupID = parseInt(req.params.groupID);
 
-        const group = await Group.findOne({groupID}).select("-_id -__v");
-
+        const group = await Group.findOne({groupID}).select("-_id -__v")
         if(!group) {
             return res.status(404).json({ message: "Group not found" });
         }
@@ -121,7 +121,7 @@ const getGroupDetails = async (req, res) => {
 const getGroupMembers = async (req, res) => {
     try {
         const userID = req.user.userID;
-        const groupID = parseInt(req.query.groupID);
+        const groupID = parseInt(req.params.groupID);
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
 
@@ -181,7 +181,7 @@ const getGroupMembers = async (req, res) => {
         });
 
     } catch (error) {
-         console.error("Error in get group members controller:", error.message);
+        console.error("Error in get group members controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
     }
 }
@@ -218,11 +218,26 @@ const getFriendMembers = async (req, res) => {
             return res.json({ members: [] });
         }
 
-        // we search all the users that are friens and members
-        const friendMembers = await User.find({userID: { $in: mutualIDs }, isDeleted: { $ne: true }})
-            .select("userID name profilePic lastSeen");
+         // Create a map of userID -> joinedAt from group.members
+        const joinedAtMap = new Map();
+        group.members.forEach(mem => {
+            if (mutualIDs.includes(mem.user)) {
+                joinedAtMap.set(mem.user, mem.joinedAt);
+            }
+        });
 
-        res.json({ members: friendMembers });
+        const friendMembers = await User.find({
+            userID: { $in: mutualIDs },
+            isDeleted: { $ne: true }
+        }).select("userID name profilePic");
+
+        // Add joinedAt to each friend member
+        const members = friendMembers.map(u => ({
+            ...u.toObject(),
+            joinedAt: joinedAtMap.get(u.userID)
+        }));
+
+        res.json({ members });
 
     } catch (error) {
         console.error("Error in get friend members controller:", error.message);
@@ -339,17 +354,21 @@ const updateGroup = async (req, res) => {
         } 
         if(image) {
             // uploading the pic to cloudinary first
+            console.log("uploading group image");
             const uploadResponse = await cloudinary.uploader.upload(image, {
                 folder: "groups"
             });
+            console.log("group image uploaded");
             group.image = uploadResponse.secure_url;
             updates.push("image")
         }
         if(banner) {
             // uploading the banner to cloudinary first
+            console.log("uploading group banner");
             const uploadResponse = await cloudinary.uploader.upload(banner, {
                 folder: "groups"
             });
+            console.log("group banner uploaded")
             group.banner = uploadResponse.secure_url;
             updates.push("banner");
         }
@@ -434,15 +453,19 @@ const removeGroup = async (req, res) => {
 
 /* ********* managing members ********* */
 
-const addMember = async (req, res) => {
+const addMembers = async (req, res) => {
     try {
         const adminID = req.user.userID;
-        const memberID = parseInt(req.params.userID);
         const groupID = parseInt(req.params.groupID);
+        const userIDs = req.body.users;
+
+        if (!Array.isArray(userIDs) || userIDs.length === 0) {
+            return res.status(400).json({ message: "No users selected" });
+        }
 
         const admin = await User.findOne({userID: adminID, isDeleted: { $ne: true }});
-        const group = await Group.findOne({groupID}).select("members admins");
-        const member = await User.findOne({userID: memberID, isDeleted: { $ne: true }})
+        const group = await Group.findOne({groupID});
+        const chat = await Chat.findOne({ group: groupID });
 
         // check if group exists
         if(!group) {
@@ -450,49 +473,74 @@ const addMember = async (req, res) => {
         }
 
         // check if the added user exists
-        if(!member || !admin) {
+        if(!admin) {
             return res.status(404).json({ message: "User not found" });
         }
+
+        //check if group chat exists
+        if (!chat) return res.status(500).json({ message: "Associated chat not found" });
 
         // check if the user is admin
         if(!group.admins.includes(adminID)) {
             return res.status(403).json({ message: "Only admin can add members" });
         }
 
-        // check if added user is already a member
-        const isAlreadyMember = group.members.some(m => m.user === memberID);
-        if (isAlreadyMember) {
-            return res.status(400).json({ message: "User is already a member of the group" });
+        let addedUsers = [];
+
+        for(const memberID of userIDs) {
+            const member = await User.findOne({ userID: memberID, isDeleted: { $ne: true } });
+
+            if(!member) continue;
+
+            // check if added user is already a member
+            const isAlreadyMember = group.members.some(m => m.user === memberID);
+            if (isAlreadyMember) continue;
+
+            const date = new Date();
+
+            group.members.push({
+                user: memberID,
+                joinedAt: date
+            });
+
+            await Chat.updateOne(
+                { chatID: chat.chatID },
+                { $addToSet: { participants: memberID } }
+            );
+
+            addedUsers.push({...member.toObject(), joinedAt: date})
         }
 
-        group.members.push({
-            user: memberID,
-            joinedAt: new Date()
-        });
+        if (addedUsers.length > 0) {
+            await group.save();
+            const added = addedUsers[0].name;
+            let announcement = `${admin.name} added ${added}`;
+            if (addedUsers.length > 1) {
+                announcement += ` and ${addedUsers.length - 1} other${addedUsers.length > 2 ? 's' : ''}`;
+            }
+            announcement += " to the group"
 
-        await group.save();
+            const message = new Message({
+                chatID: chat.chatID,
+                sender: adminID,
+                text: announcement,
+                isAnnouncement: true
+            });
 
-        const chat = await Chat.findOneAndUpdate(
-            { group: groupID },
-            { $addToSet: { participants: memberID } }
-        );
+            const savedMessage = await message.save();
 
-        if (!chat) return res.status(500).json({ message: "Associated chat not found" });
+            chat.lastMessage = savedMessage.messageID;
+            chat.updatedAt = new Date();
+            await chat.save();
 
-        const message = new Message({
-            chatID: chat.chatID,
-            sender: adminID,
-            text: `added ${member.name} to the group`,
-            isAnnouncement: true
-        });
-
-        const savedMessage = await message.save();
-
-        chat.lastMessage = savedMessage.messageID;
-        chat.updatedAt = new Date();
-        await chat.save();
-
-        res.status(200).json({ message: "Member added successfully"});        
+            res.status(200).json({ 
+                message: `${addedUsers.length} member${addedUsers.length == 1 ? '' : 's'} added successfully`,
+                group,
+                addedUsers
+            });
+        } else {
+            res.status(400).json({ message: "Failed to add any members to the group" });
+        }       
 
     } catch (error) {
         console.error("Error in add member controller:", error.message);
@@ -507,7 +555,7 @@ const removeMember = async (req, res) => {
         const groupID = parseInt(req.params.groupID);
 
         const admin = await User.findOne({userID: adminID, isDeleted: { $ne: true }});
-        const group = await Group.findOne({groupID}).select("members admins");
+        const group = await Group.findOne({groupID});
         const member = await User.findOne({userID: memberID, isDeleted: { $ne: true }});
 
         // check if group exists
@@ -559,7 +607,7 @@ const removeMember = async (req, res) => {
         chat.updatedAt = new Date();
         await chat.save();
 
-        res.status(200).json({ message: "Member removed successfully"});        
+        res.status(200).json({ message: "Member removed successfully", group});        
 
     } catch (error) {
         console.error("Error in remove member controller:", error.message);
@@ -575,7 +623,7 @@ const addAdmin = async (req, res) => {
         const groupID = parseInt(req.params.groupID);
 
         const admin = await User.findOne({userID: adminID, isDeleted: { $ne: true }});
-        const group = await Group.findOne({groupID}).select("members admins");
+        const group = await Group.findOne({groupID});
         const newAdmin = await User.findOne({userID: newAdminID, isDeleted: { $ne: true }});
 
         // check if group exists
@@ -625,7 +673,7 @@ const addAdmin = async (req, res) => {
         chat.updatedAt = new Date();
         await chat.save();
 
-        res.status(200).json({ message: "Admin added successfully"});        
+        res.status(200).json({ message: `${newAdmin.name} has been promoted to admin.`, group});        
 
     } catch (error) {
         console.error("Error in add admin controller:", error.message);
@@ -641,7 +689,7 @@ const removeAdmin = async (req, res) => {
 
         const admin = await User.findOne({ userID: adminID, isDeleted: { $ne: true } });
         const targetUser = await User.findOne({ userID: targetUserID, isDeleted: { $ne: true } });
-        const group = await Group.findOne({ groupID }).select("members admins");
+        const group = await Group.findOne({ groupID });
 
         if (!admin || !targetUser) {
             return res.status(404).json({ message: "User not found" });
@@ -687,7 +735,7 @@ const removeAdmin = async (req, res) => {
         chat.updatedAt = new Date();
         await chat.save();
 
-        res.status(200).json({ message: "User demoted from admin successfully" });
+        res.status(200).json({ message: `${targetUser.name} is no longer an admin.`, group });
 
     } catch (error) {
         console.error("Error in removeAdmin controller:", error.message);
@@ -737,7 +785,7 @@ const leaveGroup = async (req, res) => {
                 await Message.deleteMany({ chat: chat.chatID });
             }
 
-            return res.status(200).json({ message: "You left the group", groupDeleted: true });
+            return res.status(200).json({ message: "You left the group", group: null });
         }
 
         // check if all admins left the group then assign another member as the new admin
@@ -786,7 +834,7 @@ const leaveGroup = async (req, res) => {
 
         }
 
-        res.status(200).json({ message: "You left the group", groupDeleted: false });
+        res.status(200).json({ message: "You left the group", group });
     } catch (error) {
         console.error("Error in leave group controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
@@ -835,7 +883,7 @@ const getPendingJoinRequests = async (req, res) => {
                 limit,
                 totalPages: 0,
                 totalResults: 0,
-                requesters: []
+                requests: []
             });
         }
 
@@ -859,7 +907,7 @@ const getPendingJoinRequests = async (req, res) => {
             limit,
             totalPages: Math.ceil(total / limit),
             totalResults: total,
-            requesters
+            requests: requesters
         });
 
     } catch (error) {
@@ -895,22 +943,30 @@ const sendJoinRequest = async (req, res) => {
             return res.status(400).json({ message: "Join request already sent." });
         }
 
+        const date = new Date();
+
         // add request to the group
         group.joinRequests.push({
             user: userID,
-            requestedAt: new Date()
+            requestedAt: date
         });
+
 
         // add request to the user
         user.sentJoinRequests.push({
             group: groupID,
-            requestedAt: new Date()
+            requestedAt: date
         }) 
 
         await group.save();
         await user.save();
 
-        res.status(200).json({ message: "Join request sent successfully."});
+        res.status(200).json({ 
+            message: "Join request sent successfully.", 
+            group, 
+            user, 
+            request : { ...group, requestedAt: date}
+        });
     } catch (error) {
         console.error("Error in send join request controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
@@ -949,7 +1005,7 @@ const cancelJoinRequest = async (req, res) => {
         await group.save();
         await user.save();
 
-        res.status(200).json({ message: "Join request canceled successfully" });
+        res.status(200).json({ message: "Join request canceled successfully", group, user });
     } catch (error) {
         console.error("Error in cancel join request controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
@@ -986,7 +1042,10 @@ const acceptJoinRequest = async (req, res) => {
         }
 
         // add user to group members
-        group.members.push({ user: requesterID, joinedAt: new Date() });
+        const date = new Date();
+        group.members.push({ user: requesterID, joinedAt: date });
+
+        const addedUser = {...requester.toObject(), joinedAt: date}
 
         // remove from user's sent requests
         requester.sentJoinRequests = requester.sentJoinRequests.filter(r => r.group !== groupID);
@@ -1017,7 +1076,7 @@ const acceptJoinRequest = async (req, res) => {
         chat.updatedAt = new Date();
         await chat.save();
 
-        res.status(200).json({ message: "Join request accepted" });
+        res.status(200).json({ message: "Join request accepted", group, addedUser });
 
     } catch (error) {
         console.error("Error in accept join request controller:", error.message);
@@ -1063,7 +1122,7 @@ const declineJoinRequest = async (req, res) => {
         await group.save();
         await requester.save();
 
-        res.status(200).json({ message: "Join request declined" });
+        res.status(200).json({ message: "Join request declined", group });
 
     } catch (error) {
         console.error("Error in decline join request controller:", error.message);
@@ -1074,6 +1133,6 @@ const declineJoinRequest = async (req, res) => {
 module.exports = {
     getGroups, getGroupDetails, getAdminGroups, getMemberGroups, getGroupMembers, getFriendMembers,
     createGroup, updateGroup, removeGroup,
-    addMember, removeMember, addAdmin, removeAdmin, leaveGroup,
+    addMembers, removeMember, addAdmin, removeAdmin, leaveGroup,
     getPendingJoinRequests, sendJoinRequest, cancelJoinRequest, acceptJoinRequest, declineJoinRequest
 }

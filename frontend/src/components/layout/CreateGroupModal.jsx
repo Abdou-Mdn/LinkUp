@@ -130,7 +130,7 @@ const CreateGroupModal = ({onClose}) => {
 
   return (
     <div onClick={onClose} 
-        className='bg-[#00000066] dark:bg-[#ffffff33] absolute inset-0 z-50 flex items-center justify-center'
+        className='bg-[#00000066] dark:bg-[#ffffff33] fixed inset-0 z-50 flex items-center justify-center'
     >
         <form 
             onSubmit={handleSubmit}

@@ -5,7 +5,7 @@ const authMiddleware = require("../middleware/auth.middleware");
 const { 
     getGroups, getGroupDetails, getAdminGroups, getMemberGroups, getGroupMembers, getFriendMembers,
     createGroup, updateGroup, removeGroup,
-    addMember, removeMember, addAdmin, removeAdmin, leaveGroup,
+    addMembers, removeMember, addAdmin, removeAdmin, leaveGroup,
     getPendingJoinRequests, sendJoinRequest, cancelJoinRequest, acceptJoinRequest, declineJoinRequest, 
     
 } = require("../controllers/group.controller");
@@ -31,15 +31,14 @@ router.get("/members/:groupID/friends", getFriendMembers)
 
 // manage group 
 router.post("/", createGroup);
-router.put("/:groupID", updateGroup);
-router.delete("/:groupID", removeGroup);
+router.put("/update/:groupID", updateGroup);
+router.delete("/remove/:groupID", removeGroup);
 
 // manage members
-router.post("/:groupID/members/:userID", addMember);
-router.delete("/:groupID/members/:userID", removeMember);
-
-router.post("/:groupID/admins/:userID", addAdmin);
-router.delete("/:groupID/admins/:userID", removeAdmin);
+router.post("/members/:groupID", addMembers);
+router.delete("/members/:groupID/:userID", removeMember);
+router.post("/admins/:groupID/:userID", addAdmin);
+router.delete("/admins/:groupID/:userID", removeAdmin);
 router.post("/leave/:groupID", leaveGroup);
 
 // requests

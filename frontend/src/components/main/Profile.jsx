@@ -84,7 +84,7 @@ const Profile = ({ user, mutualFriends = null, setUser, loading, onSelect, updat
           {/* mutual friends */}
           {
             mutualFriends?.length > 0 && (
-              <div className='w-full lg:w-1/2 flex flex-col  px-3 lg:px-8'>
+              <div className='w-full lg:w-1/2 flex flex-col  px-3 lg:px-8 max-h-[450px]'>
                 <div className='flex gap-2 items-center justify-between py-2'>
                   <p className='flex gap-2 items-center'>
                     <Handshake className='size-6' />
@@ -94,7 +94,7 @@ const Profile = ({ user, mutualFriends = null, setUser, loading, onSelect, updat
                     {mutualFriends.length}
                   </span>
                 </div>
-                <ul className='bg-light-200 dark:bg-dark-200'>
+                <ul className='bg-light-200 dark:bg-dark-200 h-full overflow-y-scroll'>
                   {
                     mutualFriends.map(f => <ProfilePreview key={f.userID} user={f} onClick={onSelect} />)
                   }

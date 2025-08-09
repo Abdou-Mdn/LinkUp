@@ -1,6 +1,6 @@
 import React from 'react'
 
-const RequestPreviewSkeleton = ({isSent}) => {
+const RequestPreviewSkeleton = ({isSent = false}) => {
   return (
     <div className='w-full flex items-center gap-2 p-1 mt-2 bg-light-200 dark:bg-dark-200'>
        <div className='size-12 rounded-[50%] animate-pulse bg-light-300 dark:bg-dark-300'/>

@@ -31,7 +31,7 @@ function SecondaryButton({
         }
     >
         {loading ? (
-            <LoaderCircle className="size-5 mx-auto animate-spin" />
+            <LoaderCircle className="size-6 mx-auto animate-spin" />
         ) : (
             <div className='flex items-center justify-center gap-2'>
                 {leftIcon}

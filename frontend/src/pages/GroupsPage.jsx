@@ -1,16 +1,49 @@
-import React, { useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import ResponsiveLayout from '../components/layout/ResponsiveLayout'
 import { Ghost, Plus } from 'lucide-react';
 import CreateGroupModal from '../components/layout/CreateGroupModal';
-import { getAdminGroups, getMemberGroups, getSentJoinRequests } from '../lib/api/group.api';
-import { useEffect } from 'react';
+import { getAdminGroups, getFriendMembers, getGroupDetails, getJoinRequests, getMemberGroups, getMembers, getSentJoinRequests } from '../lib/api/group.api';
 import ProfilePreviewSkeleton from '../components/skeleton/ProfilePreviewSkeleton';
 import GroupPreview from '../components/previews/GroupPreview';
+import { useLayoutStore } from '../store/layout.store';
+import MobileHeader from '../components/layout/MobileHeader';
+import GroupProfile from '../components/main/GroupProfile';
+import RequestPreviewSkeleton from '../components/skeleton/RequestPreviewSkeleton';
+import SentJoinRequestPreview from '../components/previews/SentJoinRequestPreview';
 
 const Aside = ({
   activeTab, setActiveTab, view, setView, setIsModalActive,
-  memberGroups, adminGroups, requests, loading, loadingMore
+  memberGroups, adminGroups, requests, setRequests, loadMore, loading, loadingMore,
+  selectGroup, setGroup
 }) => {
+
+  const memberLoaderRef = useRef(null);
+  const adminLoaderRef = useRef(null);
+  const requestLoaderRef = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if(entries[0].isIntersecting) {
+          loadMore();
+        }
+      }, 
+      {
+        threshold: 1.0
+      }
+    );
+
+    const target = activeTab == "requests" ? requestLoaderRef.current : view == "member" ? memberLoaderRef.current : adminLoaderRef.current;
+    if(target) observer.observe(target);
+
+    return () => observer.disconnect();
+  }, [view, activeTab, loading, loadingMore]);
+
+  const onCancelRequest = (group) => {
+    setGroup(group);
+    setRequests(prev => prev.filter(r => r.groupID !== group.groupID));
+  }
+
   return (
     <div className='w-full h-screen flex flex-col items-center
     bg-light-200 text-light-txt dark:bg-dark-200 dark:text-dark-txt'>
@@ -68,11 +101,14 @@ const Aside = ({
                   <ul>
                     {
                       view == "both" ? 
-                      memberGroups.slice(0,3).map(group => <GroupPreview key={group.groupID} group={group}/>) :
-                      memberGroups.map(group => <GroupPreview key={group.groupID} group={group}/>) 
+                      memberGroups.slice(0,3).map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup}/>) :
+                      memberGroups.map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup}/>) 
                     }
                     {
                       loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
+                    }
+                    {
+                      view == "member" && <div ref={memberLoaderRef}></div>
                     }
                   </ul>
               }
@@ -101,11 +137,14 @@ const Aside = ({
                   <ul>
                     {
                       view == "both" ? 
-                      adminGroups.slice(0,3).map(group => <GroupPreview key={group.groupID} group={group}/>) :
-                      adminGroups.map(group => <GroupPreview key={group.groupID} group={group}/>) 
+                      adminGroups.slice(0,3).map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup}/>) :
+                      adminGroups.map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup}/>) 
                     }
                     {
                       loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
+                    }
+                    {
+                      view == "admin" && <div ref={adminLoaderRef}></div>
                     }
                   </ul>
               }
@@ -115,18 +154,77 @@ const Aside = ({
       }
       {
         activeTab == "requests" && (
-          <div className='bg-secondary w-full flex-1 px-2 overflow-y-scroll'> requests</div>
+          <div className='w-full flex-1 px-2 overflow-y-scroll'>
+            {
+              loading ? (
+                  Array.from({ length: 7 }).map((_, i) => <RequestPreviewSkeleton key={i} isSent={true} />)
+                ) : requests.length == 0 ? ( 
+                  <div className='flex-1 py-10 flex flex-col items-center gap-2'> 
+                    <Ghost className='size-6' />
+                    No pending requests 
+                  </div> 
+                ) : 
+                  <ul>
+                    {
+                      requests.map(r => <SentJoinRequestPreview key={r.groupID} request={r} onClick={selectGroup} onCancel={onCancelRequest} />)
+                    }
+                    {
+                      loadingMore && Array.from({ length: 2 }).map((_, i) => <RequestPreviewSkeleton key={i} isSent={true} />)
+                    }
+                    {
+                      <div ref={requestLoaderRef}></div>
+                    }
+                  </ul>
+            }
+          </div>
         )
       }
     </div>
   )
 }
 
-const Main = () => {
-  return <div>Main</div>
+const Main = ({
+  group, setGroup, loading, friendMembers,
+  members, setMembers, loadMoreMembers, loadingMoreMembers,
+  joinRequests, setJoinRequests, loadMoreJoinRequests, loadingMoreJoinRequests,
+  updateAdminGroups, updateMemberGroups, updateSentRequests 
+}) => {
+  return (
+    <div className='min-h-screen w-full'>
+      <MobileHeader title="Group" />
+      {
+        group ? (
+          <GroupProfile 
+            group={group} 
+            setGroup={setGroup}
+            loading={loading}
+            friendMembers={friendMembers} 
+            members={members} 
+            setMembers={setMembers}
+            loadMoreMembers={loadMoreMembers}
+            loadingMoreMembers={loadingMoreMembers}
+            requests={joinRequests} 
+            setRequests={setJoinRequests}
+            loadMoreRequests={loadMoreJoinRequests}  
+            loadingMoreRequests={loadingMoreJoinRequests} 
+            updateAdminGroups={updateAdminGroups}
+            updateMemberGroups={updateMemberGroups}
+            updateRequestList={updateSentRequests}
+          />
+        ) : (
+          <div className='w-full h-screen flex flex-col items-center justify-center gap-2'>
+            <img src="/assets/profile-interface.svg" className='w-[45%]' />
+            <span className='text-xl font-outfit text-light-txt dark:text-dark-txt'> Select a group to view their profile!</span>
+          </div>
+        )
+      }
+    </div>
+  )
 }
 
 function GroupsPage() {
+  const { setMainActive } = useLayoutStore();
+
   const [activeTab, setActiveTab] = useState("groups");
   const [view, setView] = useState("both");
 
@@ -149,14 +247,31 @@ function GroupsPage() {
   const limit = 10;
 
 
+  const [loadingProfile, setLoadingProfile] = useState(false);
+
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [friendMembers, setFriendMembers] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [joinRequests, setJoinRequests] = useState([]);
+
+  const [membersPage, setMembersPage] = useState(1);
+  const [joinRequestsPage, setJoinRequestsPage] = useState(1);
+  const [hasMoreMembers, setHasMoreMembers] = useState(false);
+  const [hasMoreJoinRequests, setHasMoreJoinRequests] = useState(false);
+  const [loadingMoreMembers, setLoadingMoreMembers] = useState(false);
+  const [loadingMoreJoinRequests, setLoadingMoreJoinRequests] = useState(false);
+  
+
   const fetchData = async (reset = false) => {
     try {
       let memberRes, adminRes, requestRes;
 
       if(activeTab == "groups") {
         if(reset) {
-          memberRes = await getMemberGroups(reset, memberPage, limit);
-          adminRes = await getAdminGroups(reset, adminPage, limit);
+          [ memberRes, adminRes ] = await Promise.all([
+            getMemberGroups(reset, memberPage, limit),
+            getAdminGroups(reset, adminPage, limit)
+          ]);
         } else {
           if(view == "member" && hasMoreMember) {
             memberRes = await getMemberGroups(reset, memberPage, limit);
@@ -169,10 +284,6 @@ function GroupsPage() {
           requestRes = await getSentJoinRequests(reset, requestPage, limit);
         }
       }
-
-      console.log(memberRes);
-      console.log(adminRes);
-      console.log(requestRes);
       
       if(memberRes?.groups) {
         const newGroups = memberRes.groups;
@@ -224,6 +335,85 @@ function GroupsPage() {
     }
   }
 
+  const selectGroup = async (groupID) => {
+    setLoadingProfile(true);
+    setSelectedGroup(groupID);
+    setMainActive(true); 
+    try {
+      const [res, mut, mem, req] = await Promise.all([
+        getGroupDetails(groupID),
+        getFriendMembers(groupID),
+        getMembers(groupID, true, membersPage, limit),
+        getJoinRequests(groupID, true, joinRequestsPage, limit),
+      ]);
+      
+      if(mem?.members) {
+        const totalPages = mem.totalPages;
+
+        setMembers(mem.members);
+        setHasMoreMembers(membersPage < totalPages);
+        setMembersPage(2);
+      }
+
+      if(req?.requests) {
+        const totalPages = req.totalPages;
+
+        setJoinRequests(req.requests);
+        setHasMoreJoinRequests(joinRequestsPage < totalPages);
+        setJoinRequestsPage(2);
+      }
+
+      if(mut?.members) {
+        setFriendMembers(mut.members);
+      }
+
+      if(res) {
+        setSelectedGroup(res);
+      } else {
+        setSelectedGroup(null);
+        setMainActive(false)
+      }
+    } catch (error) {
+      console.error("Error fetching group:", error);
+    } finally {
+      setLoadingProfile(false);
+    }
+  }
+
+  const loadMoreMembers = async (groupID) => {
+    if(loadingMoreMembers || !hasMoreMembers) return;
+    setLoadingMoreMembers(true);
+    const res = await getMembers(groupID, false, membersPage, limit);
+
+    if(res?.members) {
+      const newMembers = res.members;
+      const totalPages = res.totalPages
+
+      setMembers(prev => [...prev, ...newMembers]);
+      setHasMoreMembers(membersPage < totalPages);
+      setMembersPage(membersPage + 1);
+    }
+
+    setLoadingMoreMembers(false);
+  }
+
+  const loadMoreJoinRequests = async (groupID) => {
+    if(loadingMoreJoinRequests || !hasMoreJoinRequests) return;
+    setLoadingMoreJoinRequests(true);
+    const res = await getJoinRequests(groupID, false, joinRequestsPage, limit);
+
+    if(res?.requests) {
+      const newRequests = res.requests;
+      const totalPages = res.totalPages
+
+      setJoinRequests(prev => [...prev, ...newRequests]);
+      setHasMoreJoinRequests(joinRequestsPage < totalPages);
+      setJoinRequestsPage(joinRequestsPage + 1);
+    }
+
+    setLoadingMoreJoinRequests(false);
+  }
+
   return (
     <>
       <ResponsiveLayout 
@@ -237,13 +427,33 @@ function GroupsPage() {
             memberGroups={memberGroups}
             adminGroups={adminGroups}
             requests={requests}
+            setRequests={setRequests}
+            loadMore={loadMore}
             loading={loading}
             loadingMore={loadingMore}
+            selectGroup={selectGroup}
+            setGroup={setSelectedGroup}
           />
         }
 
         main={
-          <Main />
+          <Main 
+            group={selectedGroup}
+            setGroup={setSelectedGroup}
+            loading={loadingProfile}
+            friendMembers={friendMembers}
+            members={members}
+            setMembers={setMembers}
+            loadMoreMembers={loadMoreMembers}
+            loadingMoreMembers={loadingMoreMembers}
+            joinRequests={joinRequests}
+            setJoinRequests={setJoinRequests}
+            loadMoreJoinRequests={loadMoreJoinRequests}
+            loadingMoreJoinRequests={loadingMoreJoinRequests}
+            updateMemberGroups={setMemberGroups}
+            updateAdminGroups={setAdminGroups}
+            updateSentRequests={setRequests}
+          />
         }
       />
       {isModalActive && <CreateGroupModal onClose={() => setIsModalActive(false)} />}

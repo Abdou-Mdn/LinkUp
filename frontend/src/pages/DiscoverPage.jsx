@@ -9,8 +9,9 @@ import Profile from '../components/main/Profile'
 import MobileHeader from '../components/layout/MobileHeader'
 import { useLayoutStore } from '../store/layout.store'
 import { useAuthStore } from '../store/auth.store'
-import { getGroups } from '../lib/api/group.api'
+import { getFriendMembers, getGroupDetails, getGroups, getJoinRequests, getMembers } from '../lib/api/group.api'
 import GroupPreview from '../components/previews/GroupPreview'
+import GroupProfile from '../components/main/GroupProfile'
 
 
 const Aside = ({ 
@@ -135,8 +136,8 @@ const Aside = ({
                       <ul>
                         {
                           view == "both" ? 
-                          groups.slice(0,4).map(group => <GroupPreview key={group.groupID} group={group} />) :
-                          groups.map(group => <GroupPreview key={group.groupID} group={group} />) 
+                          groups.slice(0,4).map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} />) :
+                          groups.map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} />) 
                         }
                         {
                           loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
@@ -155,20 +156,46 @@ const Aside = ({
     )
   }
 
-const Main = ({ user, setUser, mutualFriends, group, loading, selectUser}) => {
-    return (
-      <div className='min-h-screen w-full'>
-        <MobileHeader title={user ? "Profile" : "Group"} />
-        {
-          user ? <Profile user={user} mutualFriends={mutualFriends} setUser={setUser} loading={loading} onSelect={selectUser} /> : 
-          group ? <div>{group}</div> :
-          <div className='w-full h-screen flex flex-col items-center justify-center gap-2'>
-            <img src="/assets/profile-interface.svg" className='w-[45%]' />
-            <span className='text-xl font-outfit text-light-txt dark:text-dark-txt'> Select a user or group to view their profile!</span>
-          </div>
-        }
-      </div>
-    )
+const Main = ({ 
+  user, setUser, mutualFriends, group, setGroup, friendMembers, loading, 
+  members, setMembers, loadMoreMembers, loadingMoreMembers,
+  joinRequests,  setRequests,  loadMoreRequests, loadingMoreRequests, 
+  selectUser, updateGroupList}) => {
+  return (
+    <div className='min-h-screen w-full'>
+      <MobileHeader title={user ? "Profile" : "Group"} />
+      {
+        user ? (
+          <Profile 
+            user={user} 
+            mutualFriends={mutualFriends} 
+            setUser={setUser} 
+            loading={loading} 
+            onSelect={selectUser} 
+          /> ) : 
+        group ? (
+          <GroupProfile 
+            group={group} 
+            setGroup={setGroup}
+            loading={loading}
+            friendMembers={friendMembers} 
+            members={members}
+            setMembers={setMembers} 
+            loadMoreMembers={loadMoreMembers}
+            loadingMoreMembers={loadingMoreMembers}
+            requests={joinRequests}  
+            setRequests={setRequests}  
+            loadMoreRequests={loadMoreRequests}  
+            loadingMoreRequests={loadingMoreRequests} 
+            updateList={updateGroupList} 
+          />) :
+        <div className='w-full h-screen flex flex-col items-center justify-center gap-2'>
+          <img src="/assets/profile-interface.svg" className='w-[45%]' />
+          <span className='text-xl font-outfit text-light-txt dark:text-dark-txt'> Select a user or group to view their profile!</span>
+        </div>
+      }
+    </div>
+  )
 }
 
 function DiscoverPage() {
@@ -193,9 +220,22 @@ function DiscoverPage() {
 
   /* main selected states */
   const [loadingProfile, setLoadingProfile] = useState(false);
+  
   const [selectedUser, setSelectedUser] = useState(null);
   const [mutualFriends, setMutualFriends] = useState([]);
+ 
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [friendMembers, setFriendMembers] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [requests, setRequests] = useState([]);
+
+  const [membersPage, setMembersPage] = useState(1);
+  const [requestsPage, setRequestsPage] = useState(1);
+  const [hasMoreMembers, setHasMoreMembers] = useState(false);
+  const [hasMoreRequests, setHasMoreRequests] = useState(false);
+  const [loadingMoreMembers, setLoadingMoreMembers] = useState(false);
+  const [loadingMoreRequests, setLoadingMoreRequests] = useState(false);
+  
 
   /* aside fetching data functions */
   const fetchData = async (reset = false, name) => {
@@ -299,6 +339,86 @@ function DiscoverPage() {
     }
   }
 
+  const selectGroup = async (groupID) => {
+    setSelectedUser(null);
+    setLoadingProfile(true);
+    setSelectedGroup(groupID);
+    setMainActive(true); 
+    try {
+      const [res, mut, mem, req] = await Promise.all([
+        getGroupDetails(groupID),
+        getFriendMembers(groupID),
+        getMembers(groupID, true, membersPage, limit),
+        getJoinRequests(groupID, true, requestsPage, limit),
+      ]);
+      
+      if(mem?.members) {
+        const totalPages = mem.totalPages;
+
+        setMembers(mem.members);
+        setHasMoreMembers(membersPage < totalPages);
+        setMembersPage(2);
+      }
+
+      if(req?.requests) {
+        const totalPages = req.totalPages;
+
+        setRequests(req.requests);
+        setHasMoreRequests(requestsPage < totalPages);
+        setRequestsPage(2);
+      }
+
+      if(mut?.members) {
+        setFriendMembers(mut.members);
+      }
+
+      if(res) {
+        setSelectedGroup(res);
+      } else {
+        setSelectedGroup(null);
+        setMainActive(false)
+      }
+    } catch (error) {
+      console.error("Error fetching group:", error);
+    } finally {
+      setLoadingProfile(false);
+    }
+  }
+
+  const loadMoreMembers = async (groupID) => {
+    if(loadingMoreMembers || !hasMoreMembers) return;
+    setLoadingMoreMembers(true);
+    const res = await getMembers(groupID, false, membersPage, limit);
+
+    if(res?.members) {
+      const newMembers = res.members;
+      const totalPages = res.totalPages
+
+      setMembers(prev => [...prev, ...newMembers]);
+      setHasMoreMembers(membersPage < totalPages);
+      setMembersPage(membersPage + 1);
+    }
+
+    setLoadingMoreMembers(false);
+  }
+
+  const loadMoreRequests = async (groupID) => {
+    if(loadingMoreRequests || !hasMoreRequests) return;
+    setLoadingMoreRequests(true);
+    const res = await getJoinRequests(groupID, false, requestsPage, limit);
+
+    if(res?.requests) {
+      const newRequests = res.requests;
+      const totalPages = res.totalPages
+
+      setRequests(prev => [...prev, ...newRequests]);
+      setHasMoreRequests(requestsPage < totalPages);
+      setRequestsPage(requestsPage + 1);
+    }
+
+    setLoadingMoreRequests(false);
+  }
+
   return (
     <ResponsiveLayout 
       aside={
@@ -314,16 +434,28 @@ function DiscoverPage() {
           users={users}
           groups={groups}
           selectUser={selectUser}
+          selectGroup={selectGroup}
         />
       } 
       main={
         <Main 
           user={selectedUser}
-          mutualFriends={mutualFriends}
           setUser={setSelectedUser}
+          mutualFriends={mutualFriends}
           group={selectedGroup}
-          loading={loadingProfile}    
+          setGroup={setSelectedGroup}
+          loading={loadingProfile}
+          friendMembers={friendMembers}
+          members={members}
+          setMembers={setMembers}
+          loadMoreMembers={loadMoreMembers}
+          loadingMoreMembers={loadingMoreMembers}
+          joinRequests={requests}
+          setRequests={setRequests}
+          loadMoreRequests={loadMoreRequests}
+          loadingMoreRequests={loadingMoreRequests}    
           selectUser={selectUser}
+          updateGroupList={setGroups}
         />
       } 
     />
