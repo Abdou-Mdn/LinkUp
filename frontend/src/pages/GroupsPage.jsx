@@ -71,7 +71,7 @@ const Aside = ({
       {/* Groups tab */}
       {
         activeTab == "groups" && (
-          <div className='w-full flex-1 px-2 flex flex-col overflow-y-scroll'> 
+          <div className='w-full flex-1 px-2 flex flex-col overflow-y-auto scrollbar'> 
             <button onClick={() => setIsModalActive(true)}
               className='flex items-center justify-center gap-2 p-2 w-fit self-end border-b-2 mb-2 cursor-pointer border-transparent hover:text-secondary hover:border-secondary
             '>
@@ -154,7 +154,7 @@ const Aside = ({
       }
       {
         activeTab == "requests" && (
-          <div className='w-full flex-1 px-2 overflow-y-scroll'>
+          <div className='w-full flex-1 px-2 overflow-y-auto scrollbar'>
             {
               loading ? (
                   Array.from({ length: 7 }).map((_, i) => <RequestPreviewSkeleton key={i} isSent={true} />)
@@ -190,7 +190,7 @@ const Main = ({
   updateAdminGroups, updateMemberGroups, updateSentRequests 
 }) => {
   return (
-    <div className='min-h-screen w-full'>
+    <div className='h-screen w-full overflow-y-auto scrollbar'>
       <MobileHeader title="Group" />
       {
         group ? (

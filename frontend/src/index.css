@@ -33,3 +33,24 @@
     /* fonts */
     --font-outfit: "Outfit", sans-serif; 
 }
+
+
+.scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-primary) transparent;
+}
+
+.scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--color-primary);
+    border-radius: 9999px;
+    width: 3px;
+}

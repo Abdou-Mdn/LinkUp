@@ -6,8 +6,13 @@ import { MessageSquareMore, UserX, UserCheck, X, UserPlus, TriangleAlert } from 
 import { formatDateWithSuffix } from '../lib/util/timeFormat';
 import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest, removeFriend, sendFriendRequest } from '../lib/api/user.api';
 import TertiaryButton from './TertiaryButton';
+import { useChatStore } from '../store/chat.store';
+import { useNavigate } from 'react-router-dom';
 
 const ProfileButtons = ({user, onAdd, onCancel, onAccept, onDecline, onUnfriend}) => {
+
+    const { selectChat } = useChatStore();
+    const navigate = useNavigate()
 
     const { authUser} = useAuthStore();
     const { friends, friendRequests, sentFriendRequests } = authUser;
@@ -67,6 +72,13 @@ const ProfileButtons = ({user, onAdd, onCancel, onAccept, onDecline, onUnfriend}
         setLoading(false);
     }
 
+    const openChat = async () => {
+        await selectChat({
+            userID: user.userID,
+            navigate: navigate("/")
+        });
+    }
+
   return (
     !isMe && (
         <>
@@ -88,7 +100,7 @@ const ProfileButtons = ({user, onAdd, onCancel, onAccept, onDecline, onUnfriend}
                                     className='py-2 px-4 mt-2' 
                                     leftIcon={<MessageSquareMore className='size-6' />} 
                                     disabled={loading}       
-                                    // open chat 
+                                    onClick={openChat} 
                                 />
                                 <SecondaryButton 
                                     text='Unfriend' 

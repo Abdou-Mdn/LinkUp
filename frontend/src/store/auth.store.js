@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import { toast } from "react-hot-toast";
+import { useChatStore } from "./chat.store";
 
 export const useAuthStore = create((set, get) => ({
     authUser: null,
@@ -54,6 +55,7 @@ export const useAuthStore = create((set, get) => ({
         try {
             await axiosInstance.post("/auth/logout");
             set({authUser: null});
+            useChatStore.getState().resetChat();
             toast.success("Logged out successfully");
         } catch (error) {
             toast.error(error.respose.data.message);

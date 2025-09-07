@@ -4,7 +4,8 @@ import { formatDateWithSuffix } from '../../lib/util/timeFormat'
 
 const GroupPreview = ({group, onClick = () => {}}) => {
   const count = group.members.length;
-    const additionalInfo = `${count} ${count == 1 ? 'member' : 'members'}`;
+  const additionalInfo = `${count} ${count == 1 ? 'member' : 'members'}`;
+  
   return (
     <div
       title={group.name} 

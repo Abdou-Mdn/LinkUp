@@ -9,8 +9,11 @@ import { getFriends } from '../../lib/api/user.api';
 import ProfilePreview from '../previews/ProfilePreview';
 import JoinRequestPreview from '../previews/JoinRequestPreview'
 import { addMembers } from '../../lib/api/group.api';
+import { sendGroupInvites, sendMessage } from '../../lib/api/chat.api';
+import { useChatStore } from '../../store/chat.store';
 
 const AddMemberModal = ({onClose, group, requests, isAdmin, onAddMembers, onAcceptRequest}) => {
+    const { selectedChat, messages, updateMessages } = useChatStore();
 
     const [loading, setLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -130,8 +133,25 @@ const AddMemberModal = ({onClose, group, requests, isAdmin, onAddMembers, onAcce
 
         const selectedUsers = Array.from(users);
         setAdding(true);
-        
-        // send invite
+        try {
+            const res = await sendGroupInvites({receiverIDs: selectedUsers, groupInvite: group.groupID});
+
+            if(res?.invites && selectedChat.chatID) {
+                const invites = res.invites 
+                console.log(invites);
+                invites.forEach(inv => {
+                    if( inv.chatID == selectedChat.chatID) {
+                        const newMessages = [...messages, inv];
+                        updateMessages(newMessages);
+                    }
+                })
+                onClose();
+            }
+        } catch (error) {
+            console.log("error in invite friends", error);
+        } finally {
+            setAdding(false)
+        }
     }
 
   return (

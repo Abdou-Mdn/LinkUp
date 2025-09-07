@@ -6,9 +6,14 @@ import TertiaryButton from './TertiaryButton'
 import { MessageSquareMore, X, PenLine, LogOut, CirclePlus, TriangleAlert } from 'lucide-react';
 import { formatDateWithSuffix } from '../lib/util/timeFormat';
 import { cancelJoinRequest, leaveGroup, sendJoinRequest } from '../lib/api/group.api';
+import { useChatStore } from '../store/chat.store';
+import { useNavigate } from 'react-router-dom';
 
 
 const GroupButtons = ({ group, openEdit, onJoin, onCancelRequest, onLeave }) => {
+
+    const { selectChat } = useChatStore();
+    const navigate = useNavigate()
 
     const { authUser, setAuthUser } = useAuthStore();
 
@@ -49,6 +54,13 @@ const GroupButtons = ({ group, openEdit, onJoin, onCancelRequest, onLeave }) => 
         setLoading(false);
     } 
 
+    const openChat = async () => {
+        await selectChat({
+            groupID: group.groupID,
+            navigate: navigate("/")
+        });
+    }
+
   return (
     <>
         <div className='flex flex-col gap-1 lg:items-end my-3 lg:absolute lg:top-[-50px] lg:right-8'>
@@ -68,7 +80,7 @@ const GroupButtons = ({ group, openEdit, onJoin, onCancelRequest, onLeave }) => 
                                 className='py-2 px-4 mt-2' 
                                 leftIcon={<MessageSquareMore className='size-6' />} 
                                 disabled={loading}       
-                                // open chat 
+                                onClick={openChat}
                             />
                             <TertiaryButton 
                                 text='Edit'
@@ -93,7 +105,7 @@ const GroupButtons = ({ group, openEdit, onJoin, onCancelRequest, onLeave }) => 
                                 className='py-2 px-4 mt-2' 
                                 leftIcon={<MessageSquareMore className='size-6' />} 
                                 disabled={loading}       
-                                // open chat 
+                                onClick={openChat}
                             />
                             <SecondaryButton 
                                 text='Leave' 

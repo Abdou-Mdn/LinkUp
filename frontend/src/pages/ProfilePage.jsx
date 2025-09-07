@@ -14,7 +14,7 @@ const Aside = ({activeSection, setActiveSection}) => {
   const { isMobile, setMainActive } = useLayoutStore();
   
   return (
-    <div className='w-full min-h-screen flex flex-col justify-between items-center
+    <div className='w-full h-screen flex flex-col justify-between items-center
       bg-light-200 text-light-txt dark:bg-dark-200 dark:text-dark-txt'>
       <div className='w-full px-2 py-4 flex flex-col gap-1 justify-start items-center'>
         <div 
@@ -89,7 +89,7 @@ const Aside = ({activeSection, setActiveSection}) => {
 
 
 const Main = ({activeSection, user, loading}) => (
-  <div className='min-h-screen w-full'>
+  <div className='h-screen w-full overflow-y-auto scrollbar'>
     {/* mobile header */}
     <MobileHeader title={activeSection} />
     {

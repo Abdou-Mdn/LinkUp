@@ -162,6 +162,26 @@ const GroupProfile = ({
     setRequests(prev => prev.filter(r => r.userID !== userID));
   }
 
+  const onUpdate = (group) => {
+    setGroup(group);
+    if(updateAdminGroups){
+      updateAdminGroups(prev => prev.map(g => g.groupID == group.groupID ? group : g));
+    }
+    if(updateList){
+      updateList(prev => prev.map(g => g.groupID == group.groupID ? group : g))
+    }
+  }
+
+  const onDelete = (groupID) => {
+    setGroup(null);
+    if(updateAdminGroups) {
+      updateAdminGroups(prev => prev.filter(g => g.groupID !== groupID));
+    }
+    if(updateList) {
+      updateList(prev => prev.filter(g => g.groupID !== groupID))
+    }
+  }
+
   return (
     <>
       <div className='size-full bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'>
@@ -330,8 +350,8 @@ const GroupProfile = ({
         <EditGroupModal 
           group={group} 
           onClose={() => setEditModal(false)} 
-          onUpdate={setGroup} 
-          updateList={updateList}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
         />
       }
       {

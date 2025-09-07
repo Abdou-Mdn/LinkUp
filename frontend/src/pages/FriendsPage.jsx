@@ -102,7 +102,7 @@ const Aside = ({
       {/* friends tab */} 
       {
         activeTab == "friends" && (
-          <div className='w-full flex-1 px-2 overflow-y-scroll'> 
+          <div className='w-full flex-1 px-2 overflow-y-auto scrollbar'> 
             {
               loading ? (
                 Array.from({ length: 8 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
@@ -129,7 +129,7 @@ const Aside = ({
       {/* friend requests tab */} 
       {
         activeTab == "requests" && (
-          <div className='w-full flex-1 px-2 overflow-y-scroll'> 
+          <div className='w-full flex-1 px-2 overflow-y-auto scrollbar'> 
             {
               loading ? (
                 Array.from({ length: 8 }).map((_, i) => <RequestPreviewSkeleton key={i} isSent={false} />)
@@ -166,7 +166,7 @@ const Aside = ({
       {/* sent requests tab */} 
       {
         activeTab == "sent" && (
-          <div className='w-full flex-1 px-2 overflow-y-scroll'> 
+          <div className='w-full flex-1 px-2 overflow-y-auto scrollbar'> 
             {
               loading ? (
                  Array.from({ length: 8 }).map((_, i) => <RequestPreviewSkeleton key={i} isSent={true} />)
@@ -205,7 +205,7 @@ const Aside = ({
 
 const Main = ({user,mutualFriends, setUser, loading, selectUser, updateFriends, updateFriendRequests, updateSentRequests}) => {
   return (
-      <div className='min-h-screen w-full'>
+      <div className='h-screen w-full overflow-y-auto scrollbar'>
         <MobileHeader title={user ? "Profile" : "Group"} />
         {
           user ? (

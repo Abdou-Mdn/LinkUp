@@ -109,9 +109,8 @@ const updateGroup = async (groupID, name, banner, image, description) => {
             name, description, image, banner
         });
 
-        const { message, group} = res.data;
-        toast.success(message);
-        return group;
+        toast.success(res.data.message);
+        return res.data;
     } catch (error) {
         toast.error(error.response.data.message)
         return null;

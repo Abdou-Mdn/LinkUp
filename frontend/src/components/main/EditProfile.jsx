@@ -9,6 +9,7 @@ import { registerLocale } from 'react-datepicker';
 import enUS from 'date-fns/locale/en-US';
 import '../../custom-datepicker.css'
 import PrimaryButton from '../PrimaryButton';
+import toast from 'react-hot-toast';
 
 registerLocale('en-US', enUS);
 
@@ -214,6 +215,11 @@ const EditProfile = () => {
     const file = e.target.files[0];
     if(!file) return;
 
+    if(!file.type.startsWith("image/")){
+      toast.error("Please select an image file");
+      return;
+    }
+
     const reader = new FileReader();
 
     reader.readAsDataURL(file);
@@ -226,6 +232,11 @@ const EditProfile = () => {
   const handleProfilePicUpload = async (e) => {
     const file = e.target.files[0];
     if(!file) return;
+
+    if(!file.type.startsWith("image/")){
+      toast.error("Please select an image file");
+      return;
+    }
 
     const reader = new FileReader();
 
@@ -280,7 +291,7 @@ const EditProfile = () => {
               type="file"
               id='cover-input'
               className='hidden'
-              accept='image/'
+              accept='image/*'
               onChange={handleCoverUpload}
               disabled={isUpdating} 
           />
@@ -300,7 +311,7 @@ const EditProfile = () => {
               type="file"
               id='profile-input'
               className='hidden'
-              accept='image/'
+              accept='image/*'
               onChange={handleProfilePicUpload}
               disabled={isUpdating} 
           />

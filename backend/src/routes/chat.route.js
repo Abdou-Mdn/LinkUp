@@ -7,7 +7,8 @@ const {
     sendMessage,
     markMessagesAsSeen,
     editMessage,
-    deleteMessage
+    deleteMessage,
+    sendGroupInvites
 } = require("../controllers/chat.controller");
 
 // route is /api/chat
@@ -17,15 +18,15 @@ router.use(authMiddleware);
 
 // chats 
 router.get("/", getChats);
-router.get("/:chatID", getChatMessages);
 router.get("/private/:userID", getPrivateChat);
 router.get("/group/:groupID", getGroupChat);
 router.put("/seen/:chatID", markMessagesAsSeen);
 
 // messages
-
+router.get("/messages/:chatID", getChatMessages);
 router.post("/message", sendMessage);
 router.put("/message/:messageID", editMessage);
 router.delete("/message/:messageID", deleteMessage);
+router.post("/invite", sendGroupInvites);
 
 module.exports = router;

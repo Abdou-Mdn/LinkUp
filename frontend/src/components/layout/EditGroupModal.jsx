@@ -4,8 +4,9 @@ import PrimaryButton from '../PrimaryButton';
 import { deleteGroup, updateGroup } from '../../lib/api/group.api';
 import SecondaryButton from '../SecondaryButton';
 import TertiaryButton from '../TertiaryButton';
+import toast from 'react-hot-toast';
 
-const EditGroupModal = ({group, onClose, onUpdate, updateList}) => {
+const EditGroupModal = ({group, onClose, onUpdate, onDelete}) => {
 
     const [activeSection, setActiveSection] = useState("edit");
     const [loading, setLoading] = useState(false);
@@ -21,6 +22,11 @@ const EditGroupModal = ({group, onClose, onUpdate, updateList}) => {
         const file = e.target.files[0];
         if(!file) return;
 
+        if(!file.type.startsWith("image/")){
+            toast.error("Please select an image file");
+            return;
+        }
+
         const reader = new FileReader();
 
         reader.readAsDataURL(file);
@@ -33,6 +39,11 @@ const EditGroupModal = ({group, onClose, onUpdate, updateList}) => {
     const handleGroupImageUpload = (e) => {
         const file = e.target.files[0];
         if(!file) return;
+
+        if(!file.type.startsWith("image/")){
+            toast.error("Please select an image file");
+            return;
+        }
 
         const reader = new FileReader();
 
@@ -54,9 +65,8 @@ const EditGroupModal = ({group, onClose, onUpdate, updateList}) => {
             setLoading(true);
             const res = await updateGroup(group.groupID, name, banner, image, description);
 
-            if(res) {
-                updateList(prev => prev.map(g => g.groupID == group.groupID ? res : g))
-                onUpdate(res);
+            if(res?.group) {
+                onUpdate(res.group);
                 onClose();
             }   
         } catch (error) {
@@ -71,12 +81,9 @@ const EditGroupModal = ({group, onClose, onUpdate, updateList}) => {
         if(loading) return;
         setLoading(true);
         try {
-            console.log("deleting group");
             await deleteGroup(group.groupID);
-            updateList(prev => prev.filter(g => g.groupID !== group.groupID))
-            onUpdate(null);
+            onDelete(group.groupID);
             onClose()
-            console.log("group deleted");
         } catch (error) {
             console.log("error in delete group: ", error);
         } finally {

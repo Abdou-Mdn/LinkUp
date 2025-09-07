@@ -2,6 +2,7 @@ const Chat = require("../models/chat.model");
 const Message = require("../models/message.model");
 const Group = require("../models/group.model");
 const User = require("../models/user.model");
+const cloudinary = require("../lib/cloudinary");
 
 /* ********** getting chat details ********** */
 
@@ -21,16 +22,35 @@ const getChats = async (req, res) => {
             .limit(limit)
             .populate({
                 path: "lastMessage",
-                select: "-_id -__v -chatID"
+                model: "Message",
+                localField: "lastMessage",
+                foreignField: "messageID",
+                justOne: true,            
+                select: "-_id -__v  -chatID",
+                populate: [
+                    {
+                        path: "sender",
+                        model: "User",
+                        localField: "sender",
+                        foreignField: "userID",
+                        select: "userID name profilePic lastSeen isDeleted"
+                    },
+                ]
             })
-            .populate({
-                path: "participants",
-                select: "userID name profilePic lastSeen isDeleted"
-            })
-            .populate({
-                path: "group",
-                select: "groupID name image"
-            });
+            .lean();
+
+            for (let chat of chats) {
+                if(chat.isGroup) {
+                    const groupData = await Group.findOne({ groupID: chat.group }, "groupID name image").lean();
+                    chat.group = groupData || null;
+                } else {
+                    const participantsData = await User.find(
+                        { userID: { $in: chat.participants } },
+                        "userID name profilePic lastSeen isDeleted"
+                    ).lean();
+                    chat.participants = participantsData;
+                }
+            }
 
         res.json({
             page,
@@ -49,7 +69,7 @@ const getChats = async (req, res) => {
 const getChatMessages = async (req, res) => {
     try {
         const userID = req.user.userID;
-        const chatID = parseInt(req.query.chatID);
+        const chatID = parseInt(req.params.chatID);
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 15;
 
@@ -68,22 +88,40 @@ const getChatMessages = async (req, res) => {
 
         // Get messages (oldest to newest)
         const messages = await Message.find({ chatID })
-        .sort({ createdAt: 1 })
+        .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
-        .populate({
-            path: "sender",
-            select: "userID name profilePic",
-        })
-        .populate({
-            path: "replyTo",
-            select: "messageID text image isGroupInvite sender",
-            populate: {
-            path: "sender",
-            select: "userID name",
+        .populate([
+            {
+                path: "sender",
+                model: "User",
+                localField: "sender",
+                foreignField: "userID",
+                select: "userID name profilePic",
             },
-        })
-        .select("-__v -_id");
+            {
+                path: "replyTo",
+                model: "Message",
+                localField: "replyTo",
+                foreignField: "messageID",
+                select: "messageID text image groupInvite sender isDeleted",
+                populate: [{
+                    path: "sender",
+                    model: "User",
+                    localField: "sender",
+                    foreignField: "userID",
+                    select: "userID name",
+                }],
+            },
+            {
+                path: "groupInvite",
+                model: "Group",
+                localField: "groupInvite",
+                foreignField: "groupID",
+                select: "groupID name image members",
+            }
+        ])
+        .lean();
 
         res.json({
             page,
@@ -102,18 +140,34 @@ const getChatMessages = async (req, res) => {
 const getPrivateChat = async (req, res) => {
     try {
         const userID = req.user.userID;
-        const otherUserID = parseInt(req.query.userID);
+        const otherUserID = parseInt(req.params.userID);
 
         if (userID === otherUserID) {
             return res.status(400).json({ message: "Cannot chat with yourself" });
         }
 
+
+        const user = await User.findOne({userID: userID}).select("userID name profilePic lastSeen isDeleted").lean();
+        const otherUser = await User.findOne({userID: otherUserID}).select("userID name profilePic lastSeen isDeleted").lean();
+
         const chat = await Chat.findOne({
             isGroup: false,
             participants: { $all: [userID, otherUserID] },
-        }).select("chatID");
+        }).populate({
+            path: "participants",
+            model: "User",
+            localField: "participants",
+            foreignField: "userID",
+            select: "userID name profilePic lastSeen isDeleted"
+        }).lean();
 
-        res.json({ chatID: chat ? chat.chatID : null });
+        const placeholder = {
+            isGroup: false,
+            participants: [user, otherUser],
+            group: null
+        }
+
+        res.json({ chat: chat ? chat : placeholder });
     } catch (error) {
         console.error("Error in get private chat controller", error.message);
         res.status(500).json({"message": "Internal server error"});
@@ -123,7 +177,7 @@ const getPrivateChat = async (req, res) => {
 const getGroupChat = async (req, res) => {
     try {
         const userID = req.user.userID;
-        const groupID = parseInt(req.query.groupID);
+        const groupID = parseInt(req.params.groupID);
 
         const group = await Group.findOne({ groupID });
         if (!group) {
@@ -135,11 +189,32 @@ const getGroupChat = async (req, res) => {
             return res.status(403).json({ message: "You are not a member of this group" });
         }
 
-        const chat = await Chat.findOne({ isGroup: true, group: groupID }).select("chatID");
+        const chat = await Chat.findOne({ isGroup: true, group: groupID })
+        .populate([
+            {
+                path: "participants",
+                model: "User",
+                localField: "participants",
+                foreignField: "userID",
+                select: "userID name profilePic lastSeen isDeleted"
+            },
+            {
+                path: "group",
+                model: "Group",
+                localField: "group",
+                foreignField: "groupID",
+                select: "groupID name image members"
+            }
+        ])
+        .lean();;
 
-        res.json({ chatID: chat ? chat.chatID : null });
+        if (!chat) {
+            return res.status(404).json({ message: "Chat not found" });
+        }
+
+        res.json({ chat });
     } catch (error) {
-        console.error("Error in get private chat controller", error.message);
+        console.error("Error in get group chat controller", error.message);
         res.status(500).json({"message": "Internal server error"});
     }
 }
@@ -147,9 +222,26 @@ const getGroupChat = async (req, res) => {
 const markMessagesAsSeen = async (req, res) => {
     try {
         const userID = req.user.userID;
-        const chatID = parseInt(req.query.chatID);
+        const chatID = parseInt(req.params.chatID);
 
-        const chat = await Chat.findOne({ chatID });
+        const chat = await Chat.findOne({ chatID }).populate({
+            path: "lastMessage",
+            model: "Message",
+            localField: "lastMessage",
+            foreignField: "messageID",
+            justOne: true,            
+            select: "-_id -__v  -chatID",
+            populate: [
+                {
+                    path: "sender",
+                    model: "User",
+                    localField: "sender",
+                    foreignField: "userID",
+                    select: "userID name profilePic lastSeen isDeleted"
+                },
+            ]
+        })
+        .lean();
 
         if(!chat) {
             return res.status(404).json({ message: "Chat not found" });
@@ -159,6 +251,17 @@ const markMessagesAsSeen = async (req, res) => {
             return res.status(403).json({ message: "You are not a participant of this chat" });
         }
 
+        if(chat.isGroup) {
+            const groupData = await Group.findOne({ groupID: chat.group }, "groupID name image").lean();
+            chat.group = groupData || null;
+        } else {
+            const participantsData = await User.find(
+                { userID: { $in: chat.participants } },
+                "userID name profilePic lastSeen isDeleted"
+            ).lean();
+            chat.participants = participantsData;
+        }
+
         // find the messages that have not yet been seen by this user
         const unseenMessages = await Message.find({
             chatID,
@@ -166,18 +269,21 @@ const markMessagesAsSeen = async (req, res) => {
         });
 
         if (unseenMessages.length === 0) {
-            return res.status(200).json({ message: "No unseen messages", updatedMessages: [] });
+            return res.status(200).json({ message: "No unseen messages", chat });
         }
 
-        const updatedMessages = [];
+        const date = new Date();
+        await Message.updateMany(
+            {
+                chatID,
+                "seenBy.user": { $ne: userID }
+            },
+            { $push: { seenBy: { user: userID, seenAt: date } } }
+        );
 
-        for(const msg of unseenMessages) {
-            msg.seenBy.push({ user: userID, seenAt: new Date() });
-            await msg.save();
-            updatedMessages.push(msg);
-        }
+        chat.lastMessage.seenBy.push({ user: userID, seenAt: date }) 
 
-        return res.status(200).json({ message: "all messages marked as seen", updatedMessages });
+        return res.status(200).json({ message: "all messages marked as seen", chat });
 
     } catch (error) {
         console.error("Error in mark message as seen controller", error.message);
@@ -190,7 +296,7 @@ const markMessagesAsSeen = async (req, res) => {
 const sendMessage = async (req, res) => {
     try {
         const senderID = req.user.userID;
-        const {chatID, receiverID, text, image, replyTo, groupInvite} = req.body
+        const {chatID, receiverID, text, image, replyTo} = req.body
 
 
         if(!text && !image) {
@@ -221,6 +327,11 @@ const sendMessage = async (req, res) => {
 
             if(existingChat) {
                 chat = existingChat;
+
+                // check if the sender is part of the chat 
+                if (!chat.participants.includes(senderID)) {
+                    return res.status(403).json({ message: "You're not part of this chat" });
+                }
             } else {
                 // create a new chat
                 chat = new Chat({
@@ -247,19 +358,14 @@ const sendMessage = async (req, res) => {
             }
         }
 
-        if (groupInvite) {
-            const group = await Group.findOne({ groupID: groupInvite });
-            if (!group) {
-                return res.status(400).json({ message: "Group invite is invalid" });
-            }
-        }
-
-        let imageUrl;
+        let imageUrl = '';
         if(image) {
             // uploading the pic to cloudinary first
+            console.log("uploading message image");
             const uploadResponse = await cloudinary.uploader.upload(image, {
                 folder: "messages"
             });
+            console.log("image uploaded");
             imageUrl = uploadResponse.secure_url;
         }
 
@@ -270,8 +376,7 @@ const sendMessage = async (req, res) => {
             text,
             image: imageUrl,
             replyTo,
-            groupInvite,
-            seenBy: [senderID]
+            seenBy: [{user: senderID, seenAt: new Date()}]
         });
 
         await message.save();
@@ -281,7 +386,76 @@ const sendMessage = async (req, res) => {
 
         await chat.save();
 
-        res.status(201).json({ message: "Message sent", message });
+        const newMessage = await Message.findOne({messageID: message.messageID})
+        .populate([
+            {
+                path: "sender",
+                model: "User",
+                localField: "sender",
+                foreignField: "userID",
+                select: "userID name profilePic",
+            },
+            {
+                path: "replyTo",
+                model: "Message",
+                localField: "replyTo",
+                foreignField: "messageID",
+                select: "messageID text image groupInvite sender",
+                populate: [{
+                    path: "sender",
+                    model: "User",
+                    localField: "sender",
+                    foreignField: "userID",
+                    select: "userID name",
+                }],
+            },
+            {
+                path: "groupInvite",
+                model: "Group",
+                localField: "groupInvite",
+                foreignField: "groupID",
+                select: "groupID name image members",
+            }
+        ])
+        .lean();
+
+        const newChat = await Chat.findOne({chatID: chat.chatID})
+        .populate([
+            {
+                path: "participants",
+                model: "User",
+                localField: "participants",
+                foreignField: "userID",
+                select: "userID name profilePic lastSeen isDeleted"
+            },
+            {
+                path: "group",
+                model: "Group",
+                localField: "group",
+                foreignField: "groupID",
+                select: "groupID name image members"
+            },
+            {
+                path: "lastMessage",
+                model: "Message",
+                localField: "lastMessage",
+                foreignField: "messageID",
+                justOne: true,            
+                select: "-_id -__v  -chatID",
+                populate: [
+                    {
+                        path: "sender",
+                        model: "User",
+                        localField: "sender",
+                        foreignField: "userID",
+                        select: "userID name profilePic lastSeen isDeleted"
+                    },
+                ]
+            }
+        ])
+        .lean();
+
+        res.status(201).json({ message: "Message sent", newMessage, chat: newChat});
 
     } catch (error) {
         console.error("Error in send message controller", error.message);
@@ -289,10 +463,112 @@ const sendMessage = async (req, res) => {
     }
 }
 
+const sendGroupInvites = async (req, res) => {
+  try {
+    const senderID = req.user.userID;
+    const { receiverIDs, groupInvite } = req.body;
+
+    if (!Array.isArray(receiverIDs) || receiverIDs.length === 0) {
+      return res.status(400).json({ message: "At least one receiverID must be provided" });
+    }
+
+    if (!groupInvite) {
+      return res.status(400).json({ message: "Cannot send empty invite" });
+    }
+
+    const group = await Group.findOne({ groupID: groupInvite });
+    if (!group) {
+      return res.status(400).json({ message: "Group invite is invalid" });
+    }
+
+    const isMember = group.members.some(m => m.user == senderID);
+    if (!isMember) {
+      return res.status(403).json({ message: "Only group members can send invites" });
+    }
+
+    let successful = 0;
+    let failed = 0;
+
+    const invites = await Promise.all(receiverIDs.map(async (receiverID) => {  
+      try {
+        // find or create chat
+        let chat = await Chat.findOne({
+          isGroup: false,
+          participants: { $all: [senderID, receiverID] }
+        });
+
+        if (!chat) {
+          chat = new Chat({
+            isGroup: false,
+            participants: [senderID, receiverID],
+            updatedAt: new Date()
+          });
+          await chat.save();
+        } else if (!chat.participants.includes(senderID)) {
+          failed++;
+          return null;
+        }
+
+        // create invite message
+        const message = new Message({
+          chatID: chat.chatID,
+          sender: senderID,
+          groupInvite,
+          seenBy: [{ user: senderID, seenAt: new Date() }]
+        });
+
+        await message.save();
+
+        chat.lastMessage = message.messageID;
+        chat.updatedAt = new Date();
+        await chat.save();
+
+        const newMessage = await Message.findOne({ messageID: message.messageID })
+          .populate([
+            {
+                path: "sender",
+                model: "User",
+                localField: "sender",
+                foreignField: "userID",
+                select: "userID name profilePic",
+            },
+            {
+                path: "groupInvite",
+                model: "Group",
+                localField: "groupInvite",
+                foreignField: "groupID",
+                select: "groupID name image members",
+            }
+        ])
+        .lean();
+
+        successful++;
+        return newMessage;
+
+      } catch (err) {
+        failed++;
+        console.log("an error occured ", err.message);
+        return null;
+      }
+    }));
+
+    res.status(201).json({
+      message: "Group invites processed",
+      successful,
+      failed,
+      invites
+    });
+
+  } catch (error) {
+    console.error("Error in sendGroupInvites controller", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 const editMessage = async (req, res) => {
     try {
         const userID = req.user.userID;
-        const messageID = parseInt(req.query.messageID);
+        const messageID = parseInt(req.params.messageID);
         const { newText } = req.body
 
         if (!newText || newText.trim() === "") {
@@ -331,7 +607,7 @@ const editMessage = async (req, res) => {
 const deleteMessage = async (req, res) => {
     try {
         const userID = req.user.userID;
-        const messageID = parseInt(req.query.messageID);
+        const messageID = parseInt(req.params.messageID);
 
         const message = await Message.findOne({ messageID, isDeleted: { $ne: true }});
 
@@ -360,5 +636,5 @@ const deleteMessage = async (req, res) => {
 
 module.exports = {
     getChats, getChatMessages, getPrivateChat, getGroupChat, markMessagesAsSeen,
-    sendMessage, editMessage, deleteMessage
+    sendMessage, sendGroupInvites, editMessage, deleteMessage
 }

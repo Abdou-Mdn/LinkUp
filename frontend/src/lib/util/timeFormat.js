@@ -38,6 +38,38 @@ const timeSince = (inputDate) => {
   return `since ${formatDateWithSuffix(past)}`;
 };
 
+function formatTime(date) {
+  const d = new Date(date);
+  const hours = d.getHours().toString().padStart(2, "0");
+  const minutes = d.getMinutes().toString().padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function isDifferentDay(date1, date2) {
+  const d1 = date1 instanceof Date ? date1 : new Date(date1);
+  const d2 = date2 instanceof Date ? date2 : new Date(date2);
+
+  return (
+    d1.getFullYear() !== d2.getFullYear() ||
+    d1.getMonth() !== d2.getMonth() ||
+    d1.getDate() !== d2.getDate()
+  );
+}
+
+function formatChatDate(date) {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1)
+
+  if(!isDifferentDay(date, today)) {
+    return "Today"
+  } else if(!isDifferentDay(date, yesterday)) {
+    return "Yesterday";
+  } else {
+    return formatDateWithSuffix(date);
+  }
+}
+
 export {
-    formatDateWithSuffix, timeSince
+  formatDateWithSuffix, timeSince, formatTime, isDifferentDay, formatChatDate
 }

@@ -75,7 +75,7 @@ const Aside = ({
               Start typing to search 
             </div> 
           ) : (
-            <div className='flex-1 w-full flex flex-col overflow-y-scroll'>
+            <div className='flex-1 w-full flex flex-col overflow-y-auto scrollbar'>
                 {/* users */}
                 <div className={`flex-col px-2 ${view == "groups" ? 'hidden' : 'flex'}`}>
                   <div className='flex items-center justify-between w-full'>
@@ -162,7 +162,7 @@ const Main = ({
   joinRequests,  setRequests,  loadMoreRequests, loadingMoreRequests, 
   selectUser, updateGroupList}) => {
   return (
-    <div className='min-h-screen w-full'>
+    <div className='h-screen w-full overflow-y-auto scrollbar'>
       <MobileHeader title={user ? "Profile" : "Group"} />
       {
         user ? (

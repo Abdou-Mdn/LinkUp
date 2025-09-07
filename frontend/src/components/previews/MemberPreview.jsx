@@ -166,15 +166,15 @@ const MemberPreview = ({member, groupID = null, isFriend = false, isAdmin = fals
                                     leftIcon={<BadgeX className='size-6' />} 
                                     toolip="Demote from admin" 
                                     className='p-1 rounded-lg'
-                                    loading={loading}
                                     onClick={handleDemote} 
+                                    disabled={loading}
                                 />
                             ) : (
-                                <TertiaryButton 
+                                <PrimaryButton 
                                     leftIcon={<BadgePlus className='size-6' />} 
                                     toolip="Promote to admin" 
                                     className='p-1 rounded-lg'
-                                    loading={loading}
+                                    disabled={loading}
                                     onClick={handlePromote} 
                                 />
                             )
@@ -183,7 +183,7 @@ const MemberPreview = ({member, groupID = null, isFriend = false, isAdmin = fals
                             leftIcon={<UserX className='size-6' />} 
                             toolip="Remove member" 
                             className='p-1 rounded-lg'
-                            isColored={false}
+                            isColored={true}
                             onClick={() => setRemoveModal(true)}
                             disabled={loading}
                         />
@@ -218,7 +218,7 @@ const MemberPreview = ({member, groupID = null, isFriend = false, isAdmin = fals
                                 onClick={() => setRemoveModal(false)}
                             />
                             <SecondaryButton
-                                text="Delete"
+                                text="Remove"
                                 className='p-2 flex-1'
                                 type='button'
                                 isColored={true}

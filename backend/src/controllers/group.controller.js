@@ -514,7 +514,7 @@ const addMembers = async (req, res) => {
         if (addedUsers.length > 0) {
             await group.save();
             const added = addedUsers[0].name;
-            let announcement = `${admin.name} added ${added}`;
+            let announcement = `added ${added}`;
             if (addedUsers.length > 1) {
                 announcement += ` and ${addedUsers.length - 1} other${addedUsers.length > 2 ? 's' : ''}`;
             }
