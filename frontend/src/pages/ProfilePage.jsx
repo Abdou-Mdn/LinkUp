@@ -7,6 +7,9 @@ import { useLayoutStore } from '../store/layout.store';
 import { LockKeyhole, LogOut, MailCheck, UserPen, UserX } from 'lucide-react';
 import MobileHeader from '../components/layout/MobileHeader';
 import EditProfile from '../components/main/EditProfile';
+import UpdateEmail from '../components/main/UpdateEmail';
+import UpdatePassword from '../components/main/UpdatePassword';
+import DeleteAccount from '../components/main/DeleteAccount';
 
 
 const Aside = ({activeSection, setActiveSection}) => {
@@ -19,7 +22,7 @@ const Aside = ({activeSection, setActiveSection}) => {
       <div className='w-full px-2 py-4 flex flex-col gap-1 justify-start items-center'>
         <div 
           className={`${!isMobile && activeSection == "profile" && 'bg-light-300 dark:bg-dark-300'} 
-          w-full p-4 flex items-center gap-4 cursor-pointer hover:pl-6 transition-all`}
+          w-full p-4 flex items-center gap-4 cursor-pointer hover:bg-light-100 dark:hover:bg-dark-100 transition-all`}
           onClick={() => {
             setActiveSection("profile");
             setMainActive(true);
@@ -33,7 +36,7 @@ const Aside = ({activeSection, setActiveSection}) => {
         </div>
         <div 
           className={`${!isMobile && activeSection == "edit profile" && 'bg-light-300 dark:bg-dark-300'} 
-          w-full p-4 flex items-center gap-4 cursor-pointer hover:pl-6 transition-all`}
+          w-full p-4 flex items-center gap-4 cursor-pointer hover:bg-light-100 dark:hover:bg-dark-100 transition-all`}
           onClick={() => {
             setActiveSection("edit profile");
             setMainActive(true);
@@ -44,7 +47,7 @@ const Aside = ({activeSection, setActiveSection}) => {
         </div>
         <div 
           className={`${!isMobile && activeSection == "update email" && 'bg-light-300 dark:bg-dark-300'} 
-          w-full p-4 flex items-center gap-4 cursor-pointer hover:pl-6 transition-all`}
+          w-full p-4 flex items-center gap-4 cursor-pointer hover:bg-light-100 dark:hover:bg-dark-100 transition-all`}
           onClick={() => {
             setActiveSection("update email");
             setMainActive(true);
@@ -55,7 +58,7 @@ const Aside = ({activeSection, setActiveSection}) => {
         </div>
         <div 
           className={`${!isMobile && activeSection == "update password" && 'bg-light-300 dark:bg-dark-300'} 
-          w-full p-4 flex items-center gap-4 cursor-pointer hover:pl-6 transition-all`}
+          w-full p-4 flex items-center gap-4 cursor-pointer hover:bg-light-100 dark:hover:bg-dark-100 transition-all`}
           onClick={() => {
             setActiveSection("update password");
             setMainActive(true);
@@ -66,7 +69,7 @@ const Aside = ({activeSection, setActiveSection}) => {
         </div>
         <div 
           className={`${!isMobile && activeSection == "delete account" && 'bg-light-300 dark:bg-dark-300'} 
-          w-full p-4 flex items-center gap-4 cursor-pointer hover:pl-6 transition-all`}
+          w-full p-4 flex items-center gap-4 cursor-pointer hover:bg-light-100 dark:hover:bg-dark-100 transition-all`}
           onClick={() => {
             setActiveSection("delete account");
             setMainActive(true);
@@ -77,7 +80,7 @@ const Aside = ({activeSection, setActiveSection}) => {
         </div>
       </div>
       <div 
-          className='w-full p-6 flex items-center gap-4 cursor-pointer hover:pl-8 transition-all hover:text-danger justify-self-end'
+          className='w-full p-6 flex items-center gap-4 cursor-pointer transition-all hover:text-danger justify-self-end'
           onClick={logout}
         >
           <LogOut className='size-8'/>
@@ -95,7 +98,9 @@ const Main = ({activeSection, user, loading}) => (
     {
       activeSection == "profile" ? <Profile user={user} loading={loading} /> :
       activeSection == "edit profile" ? <EditProfile /> :
-      <div>ikhti suka</div>
+      activeSection == "update email" ? <UpdateEmail /> :
+      activeSection == "update password" ? <UpdatePassword /> :
+      activeSection == "delete account" ? <DeleteAccount /> : null
     }
   </div>
 )

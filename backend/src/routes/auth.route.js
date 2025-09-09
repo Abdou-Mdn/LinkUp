@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const { signup, login, logout, checkAuth } = require("../controllers/auth.controller");
+const { signup, login, logout, checkAuth, verifyEmail, sendCode, verifyCode, resetPassword } = require("../controllers/auth.controller");
 const authMiddleware = require("../middleware/auth.middleware");
 
 // route is /api/auth
@@ -13,5 +13,13 @@ router.post("/login", login);
 router.post("/logout",authMiddleware, logout);
 
 router.get("/check", authMiddleware, checkAuth);
+
+router.post("/verify-email", verifyEmail);
+
+router.post("/send-otp", sendCode);
+
+router.post("/verify-otp", verifyCode);
+
+router.post("/reset-password", resetPassword);
 
 module.exports = router;

@@ -44,11 +44,20 @@ const getUserDetails = async (req, res) => {
     try {
         const userID = parseInt(req.params.userID);
 
-        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("-password -_id -__v");
+        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("-password -_id -__v").lean();
 
         if(!user) {
             return res.status(404).json({ message: "User not found" });
         }
+
+        const friendIDs = user.friends.map(f => f.user);
+
+        const friends = await User.find({
+            userID: { $in: friendIDs },
+            isDeleted: { $ne: true }
+        }).select("userID");
+
+        user.friends = friends;
 
         res.json(user);
     } catch (error) {
@@ -372,6 +381,8 @@ const deleteAccount = async (req, res) => {
             return res.status(400).json({ message: "Incorrect password" })
         }
 
+        user.name = "Deleted Account";
+        user.profilePic = "";
         user.isDeleted = true; 
 
         await user.save();

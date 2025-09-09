@@ -161,20 +161,29 @@ const ChatContainer = ({ chat, loading, onSendMessage, onEditMessage, onDeleteMe
       >
         <ArrowDown className='size-6' />
       </button>}
-      <ChatInput 
-        chat={chat} 
-        text={text}
-        setText={setText}
-        imgPreview={image}
-        setImgPreview={setImage}  
-        replyTo={replyTo}
-        setReplyTo={setReplyTo}
-        edit={edit}
-        setEdit={setEdit}
-        ref={textInputRef}
-        onSendMessage={onSendMessage}
-        onEditMessage={onEditMessage}
-      />
+      {
+        !chat.isGroup && otherUser.isDeleted ? (
+          <div className='p-3 w-full flex flex-col justify-center items-center border-t-1 border-light-txt2 dark:border-dark-txt2'> 
+            <span className='text-sm text-light-txt dark:text-dark-txt'>This account has been deleted</span>
+            <span className='text-sm text-light-txt2 dark:text-dark-txt2'>You can no longer send or receive messages in this conversation.</span>
+          </div>
+        ) : (
+          <ChatInput 
+            chat={chat} 
+            text={text}
+            setText={setText}
+            imgPreview={image}
+            setImgPreview={setImage}  
+            replyTo={replyTo}
+            setReplyTo={setReplyTo}
+            edit={edit}
+            setEdit={setEdit}
+            ref={textInputRef}
+            onSendMessage={onSendMessage}
+            onEditMessage={onEditMessage}
+          />
+        )
+      }
     </div>
   );
 };

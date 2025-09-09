@@ -46,7 +46,7 @@ const ChatPreview = ({chat, onClick = () => {}}) => {
                 isGroup ? (
                     <img src={chat.group.image ? chat.group.image : '/assets/group-avatar.svg'} className='size-12 rounded-[50%]'/>
                 ) : (
-                    <img src={(otherUser.profilePic && !otherUser.isDeleted) ? otherUser.profilePic : '/assets/avatar.svg'} className='size-12 rounded-[50%]'/>
+                    <img src={otherUser.profilePic ? otherUser.profilePic : '/assets/avatar.svg'} className='size-12 rounded-[50%]'/>
                 )
             }
             { isOnline && <div className='bg-accent border-3 border-light-200 dark:border-dark-200 size-4.25 rounded-[50%] absolute -right-0.75 -bottom-0.75'></div> }
@@ -56,7 +56,7 @@ const ChatPreview = ({chat, onClick = () => {}}) => {
                 isGroup ? (
                     <p className={`truncate ${seenByMe ? "font-normal" : "font-bold"}`}>{chat.group.name}</p>
                 ) : (
-                    <p className={`truncate ${seenByMe ? "font-normal" : "font-bold"}`}>{otherUser.isDeleted ? "Deleted User" : otherUser.name}</p> 
+                    <p className={`truncate ${seenByMe ? "font-normal" : "font-bold"}`}>{otherUser.name}</p> 
                 )
             }
             <div className={`flex items-center gap-1 text-sm ${seenByMe && 'text-light-txt2 dark:text-dark-txt2'}`}>

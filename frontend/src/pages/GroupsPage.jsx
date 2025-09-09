@@ -41,7 +41,7 @@ const Aside = ({
 
   const onCancelRequest = (group) => {
     setRequests(prev => prev.filter(r => r.groupID !== group.groupID));
-    if(selectedGroup.groupID == group.groupID) setGroup(group);
+    if(selectedGroup?.groupID == group.groupID) setGroup(group);
   }
 
   return (
@@ -101,8 +101,8 @@ const Aside = ({
                   <ul>
                     {
                       view == "both" ? 
-                      memberGroups.slice(0,3).map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup}/>) :
-                      memberGroups.map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup}/>) 
+                      memberGroups.slice(0,3).map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} isSelected={selectedGroup?.groupID === group.groupID}/>) :
+                      memberGroups.map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} isSelected={selectedGroup?.groupID === group.groupID}/>) 
                     }
                     {
                       loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
@@ -137,8 +137,8 @@ const Aside = ({
                   <ul>
                     {
                       view == "both" ? 
-                      adminGroups.slice(0,3).map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup}/>) :
-                      adminGroups.map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup}/>) 
+                      adminGroups.slice(0,3).map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} isSelected={selectedGroup?.groupID === group.groupID}/>) :
+                      adminGroups.map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} isSelected={selectedGroup?.groupID === group.groupID}/>) 
                     }
                     {
                       loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
@@ -166,7 +166,7 @@ const Aside = ({
                 ) : 
                   <ul>
                     {
-                      requests.map(r => <SentJoinRequestPreview key={r.groupID} request={r} onClick={selectGroup} onCancel={onCancelRequest} />)
+                      requests.map(req => <SentJoinRequestPreview key={req.groupID} request={req} onClick={selectGroup} onCancel={onCancelRequest} isSelected={selectedGroup?.groupID === req.groupID} />)
                     }
                     {
                       loadingMore && Array.from({ length: 2 }).map((_, i) => <RequestPreviewSkeleton key={i} isSent={true} />)

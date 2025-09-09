@@ -18,7 +18,7 @@ const Aside = ({
     search, setSearch, handleSearch, 
     loadMore, loading, loadingMore, 
     view, setView, users, groups,
-    selectUser, selectGroup
+    selectUser, selectGroup, selectedUser, selectedGroup
   }) => {
     const usersLoaderRef = useRef(null);
     const groupsLoaderRef = useRef(null);
@@ -100,8 +100,8 @@ const Aside = ({
                       <ul>
                         {
                           view == "both" ? 
-                          users.slice(0,4).map(user => <ProfilePreview key={user.userID} user={user} onClick={selectUser} />) :
-                          users.map(user => <ProfilePreview key={user.userID} user={user} onClick={selectUser}/>) 
+                          users.slice(0,4).map(user => <ProfilePreview key={user.userID} user={user} onClick={selectUser} isSelected={selectedUser?.userID === user.userID} />) :
+                          users.map(user => <ProfilePreview key={user.userID} user={user} onClick={selectUser} isSelected={selectedUser?.userID === user.userID} />) 
                         }
                         {
                           loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
@@ -136,8 +136,8 @@ const Aside = ({
                       <ul>
                         {
                           view == "both" ? 
-                          groups.slice(0,4).map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} />) :
-                          groups.map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} />) 
+                          groups.slice(0,4).map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} isSelected={selectedGroup?.groupID === group.groupID} />) :
+                          groups.map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} isSelected={selectedGroup?.groupID === group.groupID} />) 
                         }
                         {
                           loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
@@ -435,6 +435,8 @@ function DiscoverPage() {
           groups={groups}
           selectUser={selectUser}
           selectGroup={selectGroup}
+          selectedUser={selectedUser}
+          selectedGroup={selectedGroup}
         />
       } 
       main={

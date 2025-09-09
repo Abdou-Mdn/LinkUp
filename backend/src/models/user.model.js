@@ -71,6 +71,11 @@ const userSchema = new mongoose.Schema({
     isDeleted: {
         type: Boolean,
         default: false,
+    },
+    otp: {
+        code: { type: String },
+        expires: { type: Date },
+        lastSent: { type: Date}
     }
 }, {
     timestamps: true

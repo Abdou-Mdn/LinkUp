@@ -21,10 +21,10 @@ function SecondaryButton({
         onClick={onClick}
         disabled={isDisabled}
         className={
-            `outline-0 text-center rounded-4xl cursor-pointer transition-all font-medium border-1 
-             ${ isDisabled ? 'border-gray-500 bg-gray-500 text-inverted' : 
-                isColored ? 'border-danger text-danger bg-transparent hover:text-inverted hover:bg-danger' :
-                'border-light-txt text-light-txt dark:border-dark-txt dark:text-dark-txt hover:border-danger hover:text-danger'
+            `outline-0 text-center rounded-4xl transition-all font-medium border-1 
+             ${ isDisabled ? 'border-gray-500 bg-gray-500 text-inverted cursor-not-allowed' : 
+                isColored ? 'border-danger text-danger bg-transparent hover:text-inverted hover:bg-danger cursor-pointer' :
+                'border-light-txt text-light-txt dark:border-dark-txt dark:text-dark-txt hover:border-danger hover:text-danger cursor-pointer'
              }
              ${className}
             `

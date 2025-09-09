@@ -4,10 +4,12 @@ import { Link } from 'react-router-dom';
 
 import PrimaryButton from '../components/PrimaryButton';
 import { useAuthStore } from '../store/auth.store';
+import ForgotPasswordModal from '../components/layout/ForgotPasswordModal';
 
 function LogInPage() {
   const { login, isLoggingIn } = useAuthStore();
 
+  const [displayModal, setDisplayModal] = useState(false)
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -137,9 +139,18 @@ function LogInPage() {
                 }
               </button>
             </div>
-            <span className={`text-xs ${formErrors.password ? 'text-danger' : 'text-transparent'}`}>
-              { formErrors.password || "placeholder" }
-            </span>
+            <div className='flex items-center justify-between'>
+                <span className={`text-xs ${formErrors.password ? 'text-danger' : 'text-transparent'}`}>
+                    { formErrors.password || "placeholder" }
+                </span>
+                <button 
+                    type='button' 
+                    className='text-sm cursor-pointer text-primary hover:text-secondary hover:underline'
+                    onClick={() => setDisplayModal(true)}
+                >
+                    Forgot your password ?
+                </button>
+            </div>
           </div>
           <PrimaryButton 
             type="submit"
@@ -167,6 +178,9 @@ function LogInPage() {
           Sign in to continue your conversations and catch up with your messages.
         </span>
       </div>
+      {
+        displayModal && <ForgotPasswordModal onClose={() => setDisplayModal(false)} darkTheme={false} />
+      }
     </div>
   )
 }

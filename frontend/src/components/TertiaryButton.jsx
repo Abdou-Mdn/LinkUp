@@ -20,9 +20,9 @@ function TertiaryButton({
         onClick={onClick}
         disabled={isDisabled}
         className={
-            `outline-0 text-center rounded-4xl cursor-pointer transition-all font-medium border-1 
-             ${ isDisabled ? 'border-gray-500 bg-gray-500 text-inverted' : 
-                'border-light-txt text-light-txt dark:border-dark-txt dark:text-dark-txt hover:border-secondary hover:text-secondary'
+            `outline-0 text-center rounded-4xl transition-all font-medium border-1 
+             ${ isDisabled ? 'border-gray-500 bg-gray-500 text-inverted cursor-not-allowed' : 
+                'border-light-txt text-light-txt dark:border-dark-txt dark:text-dark-txt hover:border-secondary hover:text-secondary cursor-pointer'
              }
              ${className}
             `

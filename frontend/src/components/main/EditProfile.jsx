@@ -10,6 +10,7 @@ import enUS from 'date-fns/locale/en-US';
 import '../../custom-datepicker.css'
 import PrimaryButton from '../PrimaryButton';
 import toast from 'react-hot-toast';
+import { updateProfile } from '../../lib/api/user.api';
 
 registerLocale('en-US', enUS);
 
@@ -193,7 +194,7 @@ const SocialInput = ({social,id, onSave, onDelete, setDisabled}) => {
 
 
 const EditProfile = () => {
-  const { authUser, updateProfile, isUpdating } = useAuthStore();
+  const { authUser, setAuthUser } = useAuthStore();
 
   const [saveStatusMap, setSaveStatusMap] = useState({});
 
@@ -210,6 +211,8 @@ const EditProfile = () => {
   const [bio, setBio] = useState(authUser.bio || "");
   const [birthdate, setBirthdate] = useState(authUser.birthdate || null);
   const [socials, setSocials] = useState( authUser.socials );
+
+  const [loading, setLoading] = useState(false);
 
   const handleCoverUpload = async (e) => {
     const file = e.target.files[0];
@@ -262,10 +265,18 @@ const EditProfile = () => {
       setError("Name cannot be empty");
       return;
     }
-
-    await updateProfile({
-      name, bio, profilePic, cover, birthdate, socials
-    })
+    setLoading(true);
+    try {
+      const res = await updateProfile({name, bio, profilePic, cover, birthdate, socials});
+      
+      if(res?.user) {
+        setAuthUser(res.user);
+      }
+    } catch (error) {
+      console.log("error in updating profile ", error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -293,7 +304,7 @@ const EditProfile = () => {
               className='hidden'
               accept='image/*'
               onChange={handleCoverUpload}
-              disabled={isUpdating} 
+              disabled={loading} 
           />
         </label>
         {/* profile picture */}
@@ -313,7 +324,7 @@ const EditProfile = () => {
               className='hidden'
               accept='image/*'
               onChange={handleProfilePicUpload}
-              disabled={isUpdating} 
+              disabled={loading} 
           />
         </label>
       </div>
@@ -420,7 +431,7 @@ const EditProfile = () => {
           text="Save" 
           className='w-1/2 min-w-[300px] p-2 mt-2' 
           type='submit'
-          loading={isUpdating}
+          loading={loading}
           disabled={disabled} 
         />
       </div>

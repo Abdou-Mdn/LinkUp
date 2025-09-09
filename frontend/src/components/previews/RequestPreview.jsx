@@ -6,9 +6,11 @@ import TertiaryButton from '../TertiaryButton'
 import { UserCheck, UserX, X } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest } from '../../lib/api/user.api'
+import { useLayoutStore } from '../../store/layout.store'
 
-const RequestPreview = ({request, isSent, onClick, onCancel, onAccept, onDecline}) => {
+const RequestPreview = ({request, isSent, isSelected, onClick, onCancel, onAccept, onDecline}) => {
     const { setAuthUser } = useAuthStore();
+    const { isMobile } = useLayoutStore();
     const [loading, setLoading] = useState(false);
 
     const cancelRequest = async () => {
@@ -34,7 +36,7 @@ const RequestPreview = ({request, isSent, onClick, onCancel, onAccept, onDecline
         setLoading(true);
         const res = await declineFriendRequest(request.userID);
         if(res?.user && onCancel) {
-            onCancel(res.user, res.profile);
+            onDecline(res.user, res.profile);
         }
         setLoading(false);
     }
@@ -43,8 +45,8 @@ const RequestPreview = ({request, isSent, onClick, onCancel, onAccept, onDecline
     <div
       title={request.name}
       onClick={() => onClick(request.userID)} 
-      className='w-full flex items-center gap-2 py-1 px-2 cursor-pointer mt-2
-    bg-light-200 dark:bg-dark-200 text-light-txt dark:text-dark-txt hover:bg-light-100 dark:hover:bg-dark-100'
+      className={`w-full flex items-center gap-2 py-1 px-2 cursor-pointer mt-2 ${!isMobile && isSelected && 'bg-light-300 dark:bg-dark-300'}
+     text-light-txt dark:text-dark-txt hover:bg-light-100 dark:hover:bg-dark-100`}
     >
        <img src={request.profilePic ? request.profilePic : '/assets/avatar.svg'} className='size-12 rounded-[50%]'/>
        <div className='flex flex-col min-w-0 flex-1'>

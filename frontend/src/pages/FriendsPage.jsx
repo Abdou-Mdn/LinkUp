@@ -43,7 +43,7 @@ const Aside = ({
 
   const onCancel = (user, profile) => {
     setAuthUser(user);
-    if(selectedUser.userID == profile.userID) {
+    if(selectedUser?.userID == profile.userID) {
       setUser(profile);
     }
     updateSentRequests(prev => prev.filter(r => r.userID !== profile.userID));
@@ -51,7 +51,7 @@ const Aside = ({
 
   const onAccept = (user, profile) => {
     setAuthUser(user);
-    if(selectedUser.userID == profile.userID) {
+    if(selectedUser?.userID == profile.userID) {
       setUser(profile);
     }
     updateFriendRequests(prev => prev.filter(r => r.userID !== profile.userID));
@@ -60,7 +60,7 @@ const Aside = ({
 
   const onDecline = (user, profile) => {
     setAuthUser(user);
-    if(selectedUser.userID == profile.userID) {
+    if(selectedUser?.userID == profile.userID) {
       setUser(profile);
     }
     updateFriendRequests(prev => prev.filter(r => r.userID !== profile.userID));
@@ -115,7 +115,7 @@ const Aside = ({
               ) : 
               <ul className='px-1'>
                 {
-                  friends.map(friend => <ProfilePreview key={friend.userID} user={friend} onClick={selectUser}/>) 
+                  friends.map(friend => <ProfilePreview key={friend.userID} user={friend} onClick={selectUser} isSelected={selectedUser?.userID === friend.userID}/>) 
                 }
                 {
                   loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
@@ -148,6 +148,7 @@ const Aside = ({
                       key={req.userID} 
                       request={req} 
                       isSent={false} 
+                      isSelected={selectedUser?.userID === req.userID}
                       onClick={selectUser}  
                       onAccept={onAccept}
                       onDecline={onDecline}
@@ -184,6 +185,7 @@ const Aside = ({
                       key={req.userID} 
                       request={req} 
                       isSent={true} 
+                      isSelected={selectedUser?.userID === req.userID}
                       onClick={selectUser} 
                       onCancel={onCancel} 
                     />

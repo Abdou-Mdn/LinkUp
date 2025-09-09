@@ -1,3 +1,4 @@
+import { useAuthStore } from '../../store/auth.store';
 import { axiosInstance } from '../axios'
 import { toast } from "react-hot-toast";
 
@@ -125,8 +126,51 @@ const getMutualFriends = async (userID) => {
     }
 }
 
+const updateProfile = async ({ cover, profilePic, name, bio, birthdate, socials}) => {
+    try {
+        const res = await axiosInstance.put("/user/profile", {
+            name, bio, profilePic, cover, birthdate, socials
+        });
+        toast.success(res.data.message);
+        return res.data;
+    } catch (error) {
+        toast.error(error.response.data.message);
+    }
+}
+
+const updateEmail = async (email, password) => {
+    try {
+        const res = await axiosInstance.put("/user/email", {email, password});
+        toast.success(res.data.message);
+        return res.data;
+    } catch (error) {
+        toast.error(error.response.data.message);
+    }
+}
+
+const updatePassword = async (currentPassword, newPassword) => {
+    try {
+        const res = await axiosInstance.put("/user/password", {currentPassword, newPassword});
+        toast.success(res.data.message);
+        return res.data;
+    } catch (error) {
+        toast.error(error.response.data.message);
+    }
+}
+
+const deleteAccount = async (password) => {
+    try {
+        const res = await axiosInstance.delete("/user/", { data: {password} });
+        toast.success(res.data.message);
+        useAuthStore.getState().logout();
+    } catch (error) {
+        toast.error(error.response.data.message);
+    }
+}
+
 export {
     getUserDetails, getUsers, 
     sendFriendRequest, cancelFriendRequest, acceptFriendRequest, declineFriendRequest, removeFriend,
-    getFriends, getFriendRequests, getSentFriendRequests, getMutualFriends
+    getFriends, getFriendRequests, getSentFriendRequests, getMutualFriends,
+    updateProfile, updateEmail, updatePassword, deleteAccount
 }

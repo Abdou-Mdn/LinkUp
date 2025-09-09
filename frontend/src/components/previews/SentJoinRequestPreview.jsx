@@ -6,9 +6,12 @@ import { UserCheck, UserX, X } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { acceptFriendRequest, cancelFriendRequest, declineFriendRequest } from '../../lib/api/user.api'
 import { cancelJoinRequest } from '../../lib/api/group.api'
+import { useLayoutStore } from '../../store/layout.store'
 
-const SentJoinRequestPreview = ({request, onClick, onCancel}) => {
+const SentJoinRequestPreview = ({request, isSelected, onClick, onCancel}) => {
     const { setAuthUser } = useAuthStore();
+    const { isMobile } = useLayoutStore();
+
     const [loading, setLoading] = useState(false);
   
     const cancelRequest = async () => {
@@ -25,8 +28,8 @@ const SentJoinRequestPreview = ({request, onClick, onCancel}) => {
     <div
       title={request.name}
       onClick={() => onClick(request.groupID)} 
-      className='w-full flex items-center gap-2 py-1 px-2 cursor-pointer mt-2
-    bg-light-200 dark:bg-dark-200 text-light-txt dark:text-dark-txt hover:bg-light-100 dark:hover:bg-dark-100'
+      className={`w-full flex items-center gap-2 py-1 px-2 cursor-pointer mt-2 ${!isMobile && isSelected && 'bg-light-300 dark:bg-dark-300'}
+     text-light-txt dark:text-dark-txt hover:bg-light-100 dark:hover:bg-dark-100`}
     >
        <img src={request.image ? request.image : '/assets/group-avatar.svg'} className='size-12 rounded-[50%]'/>
        <div className='flex flex-col min-w-0 flex-1'>
