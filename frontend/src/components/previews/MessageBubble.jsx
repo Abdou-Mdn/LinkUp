@@ -1,77 +1,137 @@
 import React, { forwardRef, useEffect, useRef, useState } from 'react'
-import { useAuthStore } from '../../store/auth.store'
-import { formatChatDate, formatTime, timeSince } from '../../lib/util/timeFormat';
-import { Ban, Check, CheckCheck, CirclePlus, ClipboardCopy, Copy, Download, Eraser, FileImage, Mail, MessageSquareQuote, Reply, SquarePen, Trash2, X } from 'lucide-react';
-import { useChatStore } from '../../store/chat.store';
-import GroupPreview from './GroupPreview';
-import PrimaryButton from '../PrimaryButton';
-import SecondaryButton from '../SecondaryButton'
+import { Ban, CheckCheck, CirclePlus, ClipboardCopy, Download, Reply, SquarePen, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import TertiaryButton from '../TertiaryButton';
+
+import { useAuthStore } from '../../store/auth.store'
+import { useChatStore } from '../../store/chat.store';
+
 import { deleteMessage } from '../../lib/api/chat.api';
 import { cancelJoinRequest, sendJoinRequest } from '../../lib/api/group.api';
 
+import { formatChatDate, formatTime, timeSince } from '../../lib/util/timeFormat';
 
+import PrimaryButton from '../PrimaryButton';
+import SecondaryButton from '../SecondaryButton'
+import TertiaryButton from '../TertiaryButton';
+
+/* 
+ * Message type announcement. 
+ * Displays system announcements 
+
+ * params :
+ * - name: sender name.
+ * - text: announcement's text content
+*/
 const Announcement = ({ name, text}) => {
     return (
-        <div className='p-1 w-full text-center text-sm text-light-txt2 dark:text-dark-txt2'>
+        <div className='p-1 w-full text-center text-xs lg:text-sm text-light-txt2 dark:text-dark-txt2'>
             <p>{`${name} ${text}`}</p>
         </div>
     )
 }
 
+/* 
+ * Message type deleted. 
+ * Displays placeholder for deleted messages 
+
+ * params :
+ * - name: sender name.
+ * - isMine: boolean controls whether it's my message or not (for alignment left/right)
+ * - displaySender: boolean controls whether sender's profile picture is displayed next to message or not
+ * - sender: message sender's infos
+ * - setDisplayMenu: setter to toggle details visibility (no menu for deleted messages just additional infos)
+*/
 const DeletedMessage = ({name, isMine, displaySender, sender, setDisplayMenu}) => {
     return (
         <div className='w-full relative'>
             <div 
                 onClick={() => setDisplayMenu(prev => !prev)}
-                className='w-full min-w-[100px] py-2 px-4 flex items-center gap-2 rounded-2xl border-1 text-light-txt2 dark:text-dark-txt2 border-light-txt2 dark:border-dark-txt2'
+                className='w-full min-w-[100px] p-2 lg:px-4 flex items-center gap-2 rounded-2xl border-1 text-light-txt2 dark:text-dark-txt2 border-light-txt2 dark:border-dark-txt2'
             > 
                 <Ban className='size-4' />
-                <span>{`${isMine ? "You" : name} deleted this message`}</span>
+                <span className='text-sm lg:text-normal'>{`${isMine ? "You" : name} deleted this message`}</span>
             </div>
+            {/* sender's profile picture */}
             { displaySender &&
-                <div className={`size-8 rounded-full bg-transparent absolute bottom-0 ${isMine ? '-right-9' : '-left-9'}`}>
-                    <img src={ sender ? sender : '/assets/avatar.svg'} className='size-8 rounded-full shrink-0' />
+                <div className={`size-6 lg:size-8 rounded-full bg-transparent absolute bottom-0 ${isMine ? '-right-7 lg:-right-9' : '-left-7 lg:-left-9'}`}>
+                    <img src={ sender ? sender : '/assets/avatar.svg'} className='size-6 lg:size-8 rounded-full shrink-0' />
                 </div>
             }
         </div>
     )
 }
 
-const GroupCard = ({message, isMine, displaySender, sender, isSeen, onClick, displayMenu, setDisplayMenu, setDeleteModal, setEdit, setText, setReplyTo, inputRef}) => {
+/* 
+ * Message type group invite. 
+ * Displays group card with action button for group invites 
+
+ * Integrates with API functions:
+ * - `sendJoinRequest`, `cancelJoinRequest`
+ 
+ * Uses utility function: `formatTime`
+
+ * params :
+ * - message: message infos to display.
+ * - isMine: boolean controls whether it's my message or not (for alignment left/right)
+ * - displaySender: boolean controls whether sender's profile picture is displayed next to message or not
+ * - sender: message sender's infos
+ * - isSeen: boolean controls whether the message is seen or not
+ * - displayMenu: boolean state controls options menu and details visibility
+ * - setDisplayMenu: setter to toggle displayMenu state
+ * - setDeleteModal, setEdit, setText, setReplyTo, inputRef: passed down to options menu
+*/
+const GroupCard = ({message, isMine, displaySender, sender, isSeen, displayMenu, setDisplayMenu, setDeleteModal, setEdit, setText, setReplyTo, inputRef}) => {
     const { authUser, setAuthUser } = useAuthStore();
+    // loading state
     const [loading, setLoading] = useState(false);
 
+    // options menu logic
     const [menuPosition, setMenuPosition] = useState("bottom");
     const menuRef = useRef(null);
     const containerRef = useRef(null);
 
+    // get group infos
+    const group = message.groupInvite;
+    // get members count
+    const count = group.members.length;
+    // check if user is already a member
+    const isMember = group.members.some(m => m.user == authUser.userID);
+    // check if user already sent a join request
+    const sentRequest = authUser.sentJoinRequests.some(r => r.group == group.groupID);
+
+    // handle options menu position (top/bottom based on available space)
     useEffect(() => {
         if (displayMenu && containerRef.current) {
-          const containerRec = containerRef.current.getBoundingClientRect();
-          const viewportHeight = window.innerHeight;
-    
-          const spaceBelow = viewportHeight - containerRec.bottom;
-          const spaceAbove = containerRec.top;
-    
-          const menuHeight = 300; 
-    
-          if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
-            setMenuPosition("top");
-          } else {
-            setMenuPosition("bottom");
-          }
+            // get the bounding box of the container relative to the viewport
+            const containerRec = containerRef.current.getBoundingClientRect();
+            
+            // calculate available space above the container
+            const spaceAbove = containerRec.top;
+            
+            // measure menu height
+            const menuHeight = menuRef.current.offsetHeight;
+        
+            // decide whether the dropdown should open upwards or downwards:
+            // - if there's enough space above, place it on top.
+            // - otherwise, default to placing it below.
+            if (spaceAbove > menuHeight) {
+                setMenuPosition("top");
+            } else {
+                setMenuPosition("bottom");
+            }
         }
+
+        // ensure the dropdown stays in view when it opens by smoothly scrolling it into the visible area if needed
         if (displayMenu && menuRef.current) {
-          menuRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            menuRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }, [displayMenu]);
 
+    // handle click outside of menu
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (menuRef.current && !menuRef.current.contains(e.target)) {
-            onClick(false);
+                setDisplayMenu(false);
             }
         };
         if (displayMenu) {
@@ -80,90 +140,108 @@ const GroupCard = ({message, isMine, displaySender, sender, isSeen, onClick, dis
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [displayMenu]);
 
-    const group = message.groupInvite;
-
-    const count = group.members.length;
-    const isMember = group.members.some(m => m.user == authUser.userID);
-    const sentRequest = authUser.sentJoinRequests.some(r => r.group == group.groupID);
-
+    // handle send join request
     const handleJoin = async (event) => {
         event.stopPropagation();
         if(loading) return;
         setLoading(true);
-        const res = await sendJoinRequest(group.groupID);
-        if(res?.user) {
-            setAuthUser(res.user);
-        }
-        setLoading(false);
+        try {
+            const res = await sendJoinRequest(group.groupID);
+            if(res?.user) {
+                setAuthUser(res.user);
+            }   
+        } catch (error) {
+            console.log("error in group card send join request", error)
+        } finally {
+            setLoading(false);
+        }   
     }
 
+    // handle cancel join request
     const handleCancel = async (event) => {
-        event.stopPropagation
+        event.stopPropagation()
         setLoading(true);
-        const res = await cancelJoinRequest(group.groupID);
-        if(res?.user) {
-            setAuthUser(res.user);
-        }
-        setLoading(false);
+        try {
+            const res = await cancelJoinRequest(group.groupID);
+            if(res?.user) {
+                setAuthUser(res.user);
+            }
+        } catch (error) {
+            console.log("error in group card send join request", error)
+        } finally {
+            setLoading(false);
+        }   
     }
 
     return (
         <div className='w-full relative' ref={containerRef}>
             <div 
-                onClick={() => onClick(prev => !prev)}
+                onClick={() => setDisplayMenu(prev => !prev)}
                 className={`w-full min-w-[200px] p-2 overflow-hidden flex flex-col items-center gap-2 bg-light-200 dark:bg-dark-200 text-light-txt dark:text-dark-txt
                     ${isMine ? 'rounded-tr-4xl rounded-tl-4xl rounded-bl-4xl' : 'rounded-tr-4xl rounded-tl-4xl rounded-br-4xl'}
                 `}
             >
+                {/* group infos */}
                 <div className='w-full flex items-center gap-3 '>
-                    <img src={group.image ? group.image : '/assets/group-avatar.svg'} className='size-15 rounded-[50%]'/>
+                    {/* image */}
+                    <img src={group.image ? group.image : '/assets/group-avatar.svg'} className='size-12 lg:size-15 rounded-full'/>
                     <div>
+                        {/* name */}
                         <p className='font-semibold'>{group.name}</p>
+                        {/* members count */}
                         <p className='text-xs opacity-80'>
                             {`${count} ${count == 1 ? 'member' : 'members'}`}
                         </p>
                     </div>
                 </div>
-                <p className='w-full text-[16px] px-4'>
+                {/* notice text */}
+                <p className='w-full text-center text-sm lg:text-normal px-4'>
                     {`${isMine ? "You sent" : "Sent you"} an invite to join `} <strong>{group.name}</strong>
                 </p>
+                {/* action button */}
                 {
                     isMember ? 
+                    /* disabled button for members */
                     <PrimaryButton 
                         text="Already a member" 
-                        className='w-full p-3' 
+                        className='w-full p-3 text-sm lg:text-normal' 
                         disabled={isMember} 
                     /> :  
                     sentRequest ? (
+                        /* cancel join request for users who already sent a request */
                         <SecondaryButton 
                             text='Cancel Request' 
                             isColored={false} 
-                            className='w-full p-3' 
-                            leftIcon={<X className='size-6' />}
+                            className='w-full p-3 text-sm lg:text-normal' 
+                            leftIcon={<X className='size-5 lg:size-6' />}
                             disabled={isMember}
                             loading={loading}
-                            onClick={handleCancel}
+                            onClick={(e) => handleCancel(e)}
                         />
                     ) : (
+                        /* send join request if didn't send yet */
                         <PrimaryButton 
                             text="Join" 
-                            className='w-full p-3' 
-                            leftIcon={<CirclePlus className='size-6' />}
+                            className='w-full p-3 text-sm lg:text-normal' 
+                            leftIcon={<CirclePlus className='size-5 lg:size-6' />}
                             disabled={isMember}
                             loading={loading}
-                            onClick={handleJoin} 
+                            onClick={(e) => handleJoin(e)} 
                         />
                     )
                 }
+                {/* message sent time */}
                 <div className='w-full flex items-center justify-end gap-1 pb-1 pr-2'>
                     <span className='text-xs opacity-80'>{formatTime(message.createdAt)}</span>
                 </div>
             </div>
+            {/* sender profile pic */}
             { displaySender &&
-                <div className={`size-8 rounded-full bg-transparent absolute bottom-0 ${isMine ? '-right-9' : '-left-9'}`}>
-                    <img src={ sender ? sender : '/assets/avatar.svg'} className='size-8 rounded-full shrink-0' />
+                <div className={`size-6 lg:size-8 rounded-full bg-transparent absolute bottom-0 ${isMine ? '-right-7 lg:-right-9' : '-left-7 lg:-left-9'}`}>
+                    <img src={ sender ? sender : '/assets/avatar.svg'} className='size-6 lg:size-8 rounded-full shrink-0' />
                 </div>
             }
+            {/* menu options */}
             {
                 displayMenu && 
                 <OptionsMenu 
@@ -173,10 +251,10 @@ const GroupCard = ({message, isMine, displaySender, sender, isSeen, onClick, dis
                     isMine={isMine}
                     isSeen={isSeen}
                     isGroupCard={true}
+                    onClose={() => setDisplayMenu(false)}
                     setEdit={setEdit}
                     setText={setText}
                     setReplyTo={setReplyTo}
-                    setDisplayMenu={setDisplayMenu}
                     setDeleteModal={setDeleteModal}   
                     inputRef={inputRef}
                 />
@@ -185,36 +263,69 @@ const GroupCard = ({message, isMine, displaySender, sender, isSeen, onClick, dis
     )
 }
 
-const Bubble = ({message, isMine, displaySender, sender, isSeen, onClick, displayMenu, setDisplayMenu, setDeleteModal, setReplyTo, setEdit, setText, inputRef, scrollToMessage}) => {
+/* 
+ * Message type normal. 
+ * Displays bubble for normal messages (colored based on sender)
+ * Displays reply section in case the message is a reply
+ * Displays image and text  
+
+ * Uses utility function: `formatTime`
+
+ * params :
+ * - message: message infos to display.
+ * - isMine: boolean controls whether it's my message or not (for alignment left/right)
+ * - displaySender: boolean controls whether sender's profile picture is displayed next to message or not
+ * - sender: message sender's infos
+ * - isSeen: boolean controls whether the message is seen or not
+ * - displayMenu: boolean state controls options menu and details visibility
+ * - setDisplayMenu: setter to toggle displayMenu state
+ * - setDeleteModal, setEdit, setText, setReplyTo, inputRef: passed down to options menu
+ * - scrollToMessage: function to scroll to the original message of reply section
+*/
+const Bubble = ({message, isMine, displaySender, sender, isSeen, displayMenu, setDisplayMenu, setDeleteModal, setReplyTo, setEdit, setText, inputRef, scrollToMessage}) => {
+    
+    // get reply's original message infos
+    const replyTo = message.replyTo;
+    
+    // options menu logic
     const [menuPosition, setMenuPosition] = useState("bottom");
     const menuRef = useRef(null);
     const containerRef = useRef(null);
 
+    // handle options menu position (top/bottom based on available space)
     useEffect(() => {
         if (displayMenu && containerRef.current) {
-          const containerRec = containerRef.current.getBoundingClientRect();
-          const viewportHeight = window.innerHeight;
-    
-          const spaceBelow = viewportHeight - containerRec.bottom;
-          const spaceAbove = containerRec.top;
-    
-          const menuHeight = 300; 
-    
-          if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
-            setMenuPosition("top");
-          } else {
-            setMenuPosition("bottom");
-          }
+            // get the bounding box of the container relative to the viewport
+            const containerRec = containerRef.current.getBoundingClientRect();
+            
+            // calculate available space above the container
+            const spaceAbove = containerRec.top;
+            
+            // measure menu height
+            const menuHeight = menuRef.current.offsetHeight ;
+            console.log(menuHeight)
+        
+            // decide whether the dropdown should open upwards or downwards:
+            // - if there's enough space above, place it on top.
+            // - otherwise, default to placing it below.
+            if (spaceAbove > menuHeight) {
+                setMenuPosition("top");
+            } else {
+                setMenuPosition("bottom");
+            }
         }
+
+        // ensure the dropdown stays in view when it opens by smoothly scrolling it into the visible area if needed
         if (displayMenu && menuRef.current) {
-          menuRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            menuRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }, [displayMenu]);
-
+    
+    // handle click outside of menu
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (menuRef.current && !menuRef.current.contains(e.target)) {
-                onClick(false);
+                setDisplayMenu(false);
             }
         };
         if (displayMenu) {
@@ -224,16 +335,17 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, onClick, displa
     }, [displayMenu]);
 
 
-    const replyTo = message.replyTo;
+    
     return (
         <div className='w-full relative' ref={containerRef}>
             <div 
-                onClick={() => onClick(prev => !prev)}
+                onClick={() => setDisplayMenu(prev => !prev)}
                 className={`w-full min-w-[100px] overflow-hidden flex flex-col items-center gap-1
                     ${isMine ? 'bg-gradient-to-tr from-primary to-secondary text-inverted rounded-tr-2xl rounded-tl-2xl rounded-bl-2xl' : 
                     'bg-light-300 text-light-txt dark:bg-dark-300 dark:text-dark-txt rounded-tr-2xl rounded-tl-2xl rounded-br-2xl'}
                 `}
             >
+                {/* reply section (only if the message is a reply) */}
                 {replyTo && (
                     <div className='w-full pt-2 px-2 min-w-[200px]'>
                         <div 
@@ -241,14 +353,17 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, onClick, displa
                                 e.stopPropagation();
                                 scrollToMessage(replyTo.messageID)
                             }}
-                            className={`w-full max-h-12 rounded-xl flex items-center gap-2 shadow-4xl overflow-hidden cursor-pointer group
+                            className={`w-full max-h-12 rounded-xl flex items-center gap-1 lg:gap-2 shadow-4xl overflow-hidden cursor-pointer group
                                 ${isMine ? 'bg-[#fff4]' : 'bg-[#0004] dark:bg-[#fff4]'}
                             `}
                         >
-                            <div className={`h-20 w-2 group-hover:w-3 mr-1 transition-all ${isMine ? 'bg-inverted' : 'bg-light-txt dark:bg-dark-txt'}`}>.</div>
-                            {replyTo.image && !replyTo.isDeleted && <img src={replyTo.image} alt="" className='size-10 shrink-0 rounded-sm object-cover' />}
-                            <div className='flex-1 flex flex-col px-2'>
+                            <div className={`h-20 w-1.5 group-hover:w-2 mr-1 transition-all ${isMine ? 'bg-inverted' : 'bg-light-txt dark:bg-dark-txt'}`}>.</div>
+                            {/* display image preview if original message is not deleted and has an image*/}
+                            {replyTo.image && !replyTo.isDeleted && <img src={replyTo.image} alt="" className='size-8 lg:size-10 shrink-0 rounded-sm object-cover' />}
+                            <div className='flex-1 flex flex-col px-1 max-w-[75%]'>
+                                {/* original message name */}
                                 <span className='text-sm font-bold'>{replyTo.sender.name}</span>
+                                {/* original message infos (deleted/ group invite/ photo/ text) */}
                                 <span className='text-xs truncate'>
                                     { replyTo.isDeleted ? 'Deleted Message' : replyTo.groupInvite ? 'Group Invite' : (!replyTo.text && replyTo.image) ? 'Photo' : replyTo.text}            
                                 </span>
@@ -256,18 +371,24 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, onClick, displa
                         </div> 
                     </div>
                 )}
+                {/* image if message has one */}
                 {message.image && <img src={message.image} alt="" className='max-w-full h-auto object-contain' />}
-                {message.text && <p className='w-full text-[16px] pt-1 px-4 whitespace-pre-wrap'>{message.text}</p>}
+                {/* message's content text (pre formatted, keeps the same format as typed) */}
+                {message.text && <p className='w-full text-sm lg:text-normal pt-1 px-2 lg:px-4 whitespace-pre-wrap'>{message.text}</p>}
                 <div className='w-full flex items-center justify-end gap-1 pb-1 pr-2'>
+                    {/* display if message is edited */}
                     { message.isEdited && <span className='text-xs opacity-80'>Edited •</span>}
+                    {/* message timestamp */}
                     <span className='text-xs opacity-80'>{formatTime(message.createdAt)}</span>
                 </div>
             </div>
+            {/* sender's profile picture */}
             { displaySender &&
-                <div className={`size-8 rounded-full bg-transparent absolute bottom-0 ${isMine ? '-right-9' : '-left-9'}`}>
-                    <img src={ sender ? sender : '/assets/avatar.svg'} className='size-8 rounded-full shrink-0' />
+                <div className={`size-6 lg:size-8 rounded-full bg-transparent absolute bottom-0 ${isMine ? '-right-7 lg:-right-9' : '-left-7 lg:-left-9'}`}>
+                    <img src={ sender ? sender : '/assets/avatar.svg'} className='size-6 lg:size-8 rounded-full shrink-0' />
                 </div>
             }
+            {/* options menu */}
             {
                 displayMenu && 
                 <OptionsMenu 
@@ -276,10 +397,10 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, onClick, displa
                     message={message}
                     isMine={isMine}
                     isSeen={isSeen}
+                    onClose={() => setDisplayMenu(false)}
                     setReplyTo={setReplyTo}
                     setEdit={setEdit}
                     setText={setText}
-                    setDisplayMenu={setDisplayMenu}
                     setDeleteModal={setDeleteModal}
                     inputRef={inputRef}   
                 />
@@ -288,12 +409,30 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, onClick, displa
     )
 }
 
+/* 
+ * MessageFooter. 
+ * Displays message status under the bubble (delivered/ seen) 
+ * Displays delivered if it's my last message and is not seen by anyone
+ * Displays small images of users who saw my message
+ * Displays text if displayDetails is true, (seen at time) if it's in a private chat, (seen by names) if it's group chat  
+
+ * Uses utility function: `timeSince`
+
+ * params :
+ * - seendBy: array of users who saw the message
+ * - seenByOther: infos of seen status in private chat (time)
+ * - myLastMessage: boolean controls whether message footer is rendered or not
+ * - displayDetails: boolean controls whether footer contains text details or seen images
+*/
 const MessageFooter = ({seenBy, seenByOther, myLastMessage, displayDetails}) => {
     const { selectedChat } = useChatStore();
 
+    // check if chat is group chat or private
     const isGroup = selectedChat.isGroup;
+    // get the time the message was seen by the other user (private chat)
     const seenAt = seenByOther.length > 0 ? seenByOther[0].seenAt : null;
 
+    // get the names of the users who saw my message (group chat)
     let seenByNames = seenByOther.map(s => {
         const participant = selectedChat.participants.find(p => p.userID == s.user);
 
@@ -309,6 +448,7 @@ const MessageFooter = ({seenBy, seenByOther, myLastMessage, displayDetails}) => 
     return (
         <div className='max-w-full flex items-center justify-end gap-1 pt-0.5 text-xs text-light-txt2 dark:text-dark-txt2'>
             {
+                // display delivered if no one saw my message yet (only on my last message)
                 (seenByOther.length == 0) ? (
                     myLastMessage &&
                     <>
@@ -316,6 +456,7 @@ const MessageFooter = ({seenBy, seenByOther, myLastMessage, displayDetails}) => 
                         <CheckCheck className='size-4' />
                     </>
                 ) : (
+                    // if display details is false render images 
                     !displayDetails ? (
                         <>
                             {
@@ -328,6 +469,7 @@ const MessageFooter = ({seenBy, seenByOther, myLastMessage, displayDetails}) => 
                                     />
                                 ))
                             }
+                            {/* in case there are more than 3 viewers add a (+#) */}
                             {   seenBy.length > 3 && (
                                     <div className="size-3.5 flex items-center justify-center text-[10px] rounded-full bg-light-300 dark:bg-dark-300 text-light-txt dark:text-dark-txt">
                                         +{seenBy.length - 3}
@@ -336,9 +478,12 @@ const MessageFooter = ({seenBy, seenByOther, myLastMessage, displayDetails}) => 
                             }
                         </>
                     ) : (
+                        // if displayDetails is true render text details
+                        // display time if it's private chat
                         !isGroup ? (
                             <span>{`Seen ${timeSince(seenAt)}`}</span>
                         )  : (
+                            // display list of viewers names if it's group chat
                             <p className="flex flex-wrap gap-x-1">
                                 <span>Seen by</span>
                                 {seenByNames.map((user, idx) => (
@@ -355,22 +500,44 @@ const MessageFooter = ({seenBy, seenByOther, myLastMessage, displayDetails}) => 
     )
 }
 
-const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard = false, setEdit, setText, setReplyTo, setDisplayMenu, setDeleteModal, inputRef}, ref) => {
+/* 
+ * OptionsMenu. 
+ * Displays menu with different options based on the message 
 
+ * Forwards the menu ref to the parent component to decide menu position
+
+ * params :
+ * - position: menu's position (top/bottom)
+ * - message: message who opened the menu
+ * - isMine: boolean controls whether the message is mine or not (user for menu alignment right/left)
+ * - isSeen: if message was seen by others
+ * - isGroupCard: if message is a group card
+ * - onclose: setter to close the option menu
+ * - setEdit: setter to set message as the edit target of chat input
+ * - setText: setter to set chat input's text to message's content
+ * - setReplyTo: setter to set message as reply target of chat input
+ * - setDeletModal: setter to toggle delete message confirmation modal
+ * - inputRef: chat input ref used to focus the input
+*/
+const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard = false, onClose, setEdit, setText, setReplyTo, setDeleteModal, inputRef}, ref) => {
+
+    // handle select reply to message
     const handleReplyTo = () => {
         setEdit(null);
         setText('');
         setReplyTo(message);
         inputRef.current.focus();
-        setDisplayMenu(false);
+        onClose();
     }
 
+    // handle select copy to clipboard
     const handleCopy = async() => {
         await navigator.clipboard.writeText(message.text)
         toast.success("Text copied to clipboard!")
-        setDisplayMenu(false)
+        onClose()
     }
 
+    // handle select download image 
     const handleSave = async () => {
         try {
             const response = await fetch(message.image);
@@ -388,72 +555,76 @@ const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard 
             console.error("Error saving image:", error);
             toast.error("Error saving the image");
         } finally {
-            setDisplayMenu(false);
+            onClose();
         }
     };
 
+    // handle select edit message
     const handleEdit = () => {
         setReplyTo(null)
         setEdit(message);
         setText(message.text);
         inputRef.current.focus();
-        setDisplayMenu(false);
+        onClose();
     }
 
     return (
         <div
             ref={ref}
-            className={`border-1 drop-shadow-lg rounded-lg absolute w-[250px] ${isMine ? 'right-1/2' : 'left-1/2'} z-10
-                ${position === 'top' ? 'bottom-full mb-2' : 'top-10'}
-                bg-light-200 border-light-txt2 text-light-txt dark:bg-dark-200 dark:border-dark-txt2 dark:text-dark-txt`}
+            className={`border-1 drop-shadow-lg rounded-lg text-sm lg:text-normal py-2 px-1 flex flex-col gap-2  w-[250px] absolute z-10 ${isMine ? 'right-1/4 lg:right-1/2' : 'left-1/4 lg:left-1/2'} ${position === 'top' ? 'bottom-full mb-2' : 'top-1/2'} bg-light-200 border-light-txt2 text-light-txt dark:bg-dark-200 dark:border-dark-txt2 dark:text-dark-txt`}
         >
+            {/* reply to option */}
             <button  
-            className='w-full flex items-center gap-2 p-2 capitalize transition-all cursor-pointer border-b-1 border-light-txt2 hover:bg-primary hover:text-inverted'
-            onClick={handleReplyTo}  
+                className='flex items-center gap-4 p-2 capitalize transition-all cursor-pointer hover:bg-light-300 hover:dark:bg-dark-300'
+                onClick={handleReplyTo}  
             >
-                <Reply className='size-6' />
+                <Reply className='size-5 lg:size-6' />
                 Reply to
             </button>
+            {/* copy to clipboard option (only if message has text and is not a group invite) */}
             {
                 !isGroupCard && message.text && (
                 <button  
-                    className='w-full flex items-center gap-2 p-2 capitalize transition-all cursor-pointer border-b-1 border-light-txt2 hover:bg-primary hover:text-inverted'  
+                    className='flex items-center gap-4 p-2 capitalize transition-all cursor-pointer hover:bg-light-300 hover:dark:bg-dark-300'
                     onClick={handleCopy}
                 >
-                    <ClipboardCopy className='size-6' />
+                    <ClipboardCopy className='size-5 lg:size-6' />
                     Copy to clipboard
                 </button>
                 )
             }
+            {/* save image option (only if message has image and is not a group invite) */}
             {
                 !isGroupCard && message.image && (
                 <button  
-                    className='w-full flex items-center gap-2 p-2 capitalize transition-all cursor-pointer border-b-1 border-light-txt2 hover:bg-primary hover:text-inverted'  
+                    className='flex items-center gap-4 p-2 capitalize transition-all cursor-pointer hover:bg-light-300 hover:dark:bg-dark-300'
                     onClick={handleSave}
                 >
-                    <Download className='size-6' />
+                    <Download className='size-5 lg:size-6' />
                     Save image
                 </button>
                 )
             }
+            {/* edit message option (only if message is mine and not seen and is not a group invite) */}
             {
                 isMine && !isGroupCard && !isSeen && (
                 <button  
-                    className='w-full flex items-center gap-2 p-2 capitalize transition-all cursor-pointer border-b-1 border-light-txt2 hover:bg-primary hover:text-inverted'  
+                    className='flex items-center gap-4 p-2 capitalize transition-all cursor-pointer hover:bg-light-300 hover:dark:bg-dark-300'
                     onClick={handleEdit}
                 >
-                    <SquarePen className='size-6' />
+                    <SquarePen className='size-5 lg:size-6' />
                     Edit
                 </button>
                 )
             }
+            {/* delete message option (only if message is mine) open confirmation modal */}
             {
                 isMine && (
                 <button  
-                    className='w-full flex items-center gap-2 p-2 capitalize transition-all cursor-pointer border-b-1 border-light-txt2 hover:bg-primary hover:text-inverted'  
+                    className='flex items-center gap-4 p-2 capitalize transition-all cursor-pointer hover:bg-light-300 hover:dark:bg-dark-300'
                     onClick={() => setDeleteModal(true)}
                 >
-                    <Trash2 className='size-6' />
+                    <Trash2 className='size-5 lg:size-6' />
                     Delete
                 </button>
                 )
@@ -462,62 +633,97 @@ const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard 
     )
 })
 
+
+/* 
+ * MessageBubble component
+ * Preview for message with all types.
+
+ * - Displays message in different styles based on message type.
+ * - Displays date separator to group message by day
+ * - Displays delete message confirmation modal
+ 
+ * Integrates with API functions:
+ * - `deleteMessage`,
+ 
+ * Uses utility function: `formatChatDate`
+
+ * params:
+ * - message: object infos to display
+ * - displayDay: boolean to control day separator display
+ * - display sender: boolean to control sender's image
+ * - myLastMessage: boolean to control whether message is my last sent message
+ * - setReplyTo, setEdit, setText, inputRef: passed down to OptionMenu via Bubble and GroupCard 
+ * - scrollToMessage: passed down to Bubble
+ * - onDelete: callback function to update messages and chat after deleting the message 
+*/
 const MessageBubble = ({message, displayDay, displaySender, myLastMessage, setReplyTo, setEdit, setText, inputRef, scrollToMessage, onDeleteMessage}) => {
   const { authUser } = useAuthStore();
   const { getSeenBy, messages, updateMessages } = useChatStore();
 
-  const [ displayMenu, setDisplayMenu] = useState(false); 
-  const [deleteModal, setDeleteModal] = useState(false);
-  const [loading, setLoading] = useState(false);
+  // management states
+  const [displayMenu, setDisplayMenu] = useState(false); // menu option visibility control state 
+  const [deleteModal, setDeleteModal] = useState(false); // delete message confirmation modal visibility state
+  const [loading, setLoading] = useState(false); // lodaing state
 
+  // check if message is mine or not (for alignment)
   const isMine = message.sender.userID === authUser.userID;
+  // get other user infos who saw my message
   const seenByOther = message.seenBy.filter(s => s.user !== authUser.userID);
 
+  // get list of users who saw the message
   let seenBy = getSeenBy(message.messageID); 
-  seenBy = seenBy.filter(u => u.userID !== authUser.userID)
   
-
+  // handle delete message
   const handleDeleteMessage = async () => {
-        if(loading) return;
-        try {
-            setLoading(true);
-            const res = await deleteMessage(message.messageID);
+    if(loading) return;
+    try {
+        setLoading(true);
+        const res = await deleteMessage(message.messageID);
 
-            if(res?.deletedMessage) {
-                const newMessages = messages.map(msg => msg.messageID == message.messageID ? { ...msg, text: "", image: "", isDeleted: true } : msg);
-                updateMessages(newMessages);
-                onDeleteMessage(message.chatID, message.messageID);
-            }
-        } catch (error) {
-            console.log("error in deleting message", error);
-        } finally {
-            setLoading(false);
-            setDeleteModal(false)
+        if(res?.deletedMessage) {
+            const newMessages = messages.map(msg => msg.messageID == message.messageID ? { ...msg, text: "", image: "", isDeleted: true } : msg);
+            updateMessages(newMessages);
+            onDeleteMessage(message.chatID, message.messageID);
         }
+    } catch (error) {
+        console.log("error in deleting message", error);
+    } finally {
+        setLoading(false);
+        // close modal
+        setDeleteModal(false)
+    }
   }
 
   return (
     <>
+        {/* day separator */}
         {
             displayDay && (
-                <div className='p-1 px-10 w-full flex items-center justify-center gap-4 text-center text-sm text-light-txt2 dark:text-dark-txt2'>
+                <div className='p-1 px-10 w-full flex items-center justify-center gap-4 text-center text-xs lg:text-sm text-light-txt2 dark:text-dark-txt2'>
                     <div className='flex-1 h-[1px] opacity-70 bg-light-txt2 dark:bg-dark-txt2'></div>
                     <p>{formatChatDate(message.createdAt)}</p>
                     <div className='flex-1 h-[1px] opacity-70 bg-light-txt2 dark:bg-dark-txt2'></div>
                 </div>
             )
         }
-        <div className={`w-full px-6 py-1 flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+        {/* message container */}
+        <div className={`w-full px-4 py-1 flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+            {/* display message based on it's type */}
             {
+                // announcement
                 message.isAnnouncement ? (
                     <Announcement 
                         name={message.sender.name}
                         text={message.text}
                     />                   
                 ) : (
-                    <div className='max-w-[70%]'>
-                        <div className={isMine ? 'pr-9' : 'pl-9'}>
-                            { message.isDeleted ? (
+                    // align message to right if mine and to left if not
+                    <div className='max-w-[80%] lg:max-w-[65%]'>
+                        <div className={isMine ? 'pr-6 lg:pr-9' : 'pl-6 lg:pl-9'}>
+                            
+                            { 
+                              // deleted message
+                              message.isDeleted ? (
                                 <DeletedMessage
                                     isMine={isMine}
                                     name={message.sender.name}
@@ -525,23 +731,25 @@ const MessageBubble = ({message, displayDay, displaySender, myLastMessage, setRe
                                     sender={message.sender.profilePic}
                                     setDisplayMenu={setDisplayMenu}
                                 />
-                            ) : message.groupInvite ? (
+                            ) :
+                              // group invite 
+                              message.groupInvite ? (
                                 <GroupCard 
                                     message={message}
                                     isMine={isMine} 
                                     displaySender={displaySender}
                                     sender={message.sender.profilePic}
                                     isSeen={seenByOther.length > 0}
-                                    onClick={setDisplayMenu}
                                     displayMenu={displayMenu}
+                                    setDisplayMenu={setDisplayMenu}
                                     setEdit={setEdit}
                                     setText={setText}
                                     setReplyTo={setReplyTo}
-                                    setDisplayMenu={setDisplayMenu}
                                     setDeleteModal={setDeleteModal}
                                     inputRef={inputRef}
                                 />
                             ) : ( 
+                                // normal message
                                 <Bubble
                                     message={message}
                                     isMine={isMine}
@@ -559,6 +767,7 @@ const MessageBubble = ({message, displayDay, displaySender, myLastMessage, setRe
                                     scrollToMessage={scrollToMessage}
                                 />
                             )}
+                            {/* display footer under my message */}
                             { isMine && (
                                 <MessageFooter
                                     myLastMessage={myLastMessage}
@@ -572,6 +781,7 @@ const MessageBubble = ({message, displayDay, displaySender, myLastMessage, setRe
                 )
             }
         </div>
+        {/* delete confirmation modal */}
         {
             deleteModal && (
                 <div onClick={() => setDeleteModal(false)} 
@@ -579,25 +789,28 @@ const MessageBubble = ({message, displayDay, displaySender, myLastMessage, setRe
                 >
                     <div 
                         onClick={(e) => e.stopPropagation()} 
-                        className='h-[40%] w-[50%] min-w-[350px] rounded-2xl flex flex-col items-center justify-center p-10 gap-4 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'
+                        className='h-fit max-h-[40%] w-[50%] min-w-[350px] rounded-2xl flex flex-col items-center justify-center p-10 gap-4 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'
                     >
-                        <h3 className='text-danger text-xl font-semibold flex items-center gap-2'>
+                        {/* title and text */}
+                        <h3 className='text-danger lg:text-xl font-semibold flex items-center gap-2'>
                             <span> Delete Message </span>
                         </h3>
                         <span className='text-sm text-light-txt dark:text-dark-txt text-center'>
                             Are you sure you want to delete this message ?
                         </span>
                         <div className='mt-2 flex items-center gap-4 w-[80%] min-w-min-w-[300px]'>
+                            {/* close modal button */}
                             <TertiaryButton
                                 text="Cancel"
-                                className='p-2 flex-1'
+                                className='p-2 flex-1 text-sm lg:text-normal'
                                 type='button'
                                 disabled={loading}
                                 onClick={() => setDeleteModal(false)}
                             />
+                            {/* confirm deletion button */}
                             <SecondaryButton
                                 text="Delete"
-                                className='p-2 flex-1'
+                                className='p-2 flex-1 text-sm lg:text-normal'
                                 type='button'
                                 isColored={true}
                                 disabled={loading}

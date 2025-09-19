@@ -1,71 +1,120 @@
-import { CircleCheck, FileImage, Image, Laugh, Mail, MessageSquareQuote, Send, SquarePen, X } from 'lucide-react';
 import React, { forwardRef, useEffect, useRef, useState } from 'react'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
+import { CircleCheck, FileImage, Image, Laugh, Mail, MessageSquareQuote, Send, SquarePen, X } from 'lucide-react';
+
 import { useThemeStore } from '../store/theme.store'
-import PrimaryButton from './PrimaryButton'
-import { editMessage, sendMessage } from '../lib/api/chat.api';
 import { useChatStore } from '../store/chat.store';
 import { useAuthStore } from '../store/auth.store';
 
+import { editMessage, sendMessage } from '../lib/api/chat.api';
 
+import PrimaryButton from './PrimaryButton'
+
+/* 
+ * ChatInput Component
+ 
+ * Displays the chat input of the chat container
+  
+ * Integrates with API functions:
+ * - `sendMessage`, `editMessage`,
+ 
+ * Forwards a ref of the text input to the parent component (used to focus the input) 
+
+ * params:
+ * - chat: selected chat infos
+ * - text: state of the input's text
+ * - setText: setter to update the input's text
+ * - imagePreview: state of uploaded image to send
+ * - setImagePreview: setter to update the image
+ * - replyTo: state of the target message to reply to
+ * - setReplyTp: setter to update the target message
+ * - edit: state of the message to edit
+ * - setEdit: setter to update the message to edit
+ * - onSendMessage: callback function to update messages and chat after sending message
+ * - onEditMessage: callback function to update messages and chat after editing message
+*/
 const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, replyTo, setReplyTo, edit, setEdit, onSendMessage, onEditMessage}, ref) => {
     const { theme } = useThemeStore();
     const { messages, updateMessages } = useChatStore();
     const { authUser } = useAuthStore();
 
+    // emoji picker visivility state
     const [showPicker, setShowPicker] = useState(false);
+    // image uploader input ref
     const fileInputRef = useRef(null);
 
+    // loading state
     const [loading, setLoading] = useState(false);
 
+    // handle uploading the image
     const handleImageSelect = (e) => {
         const file = e.target.files[0];
+        // accept only images
         if(!file.type.startsWith("image/")) {
             toast.error("Please select an image file");
             return;
         }
 
         const reader = new FileReader();
-        reader.onloadend = () => {
-            setImgPreview(reader.result);
-        }
+
         reader.readAsDataURL(file);
+        reader.onloadend = () => {
+            const base64Image = reader.result;
+            setImgPreview(base64Image);
+        }
     }
 
+    // handle remove uploaded image
     const removeImage = () => {
         setImgPreview(null);
         if(fileInputRef.current) fileInputRef.current.value = '';
     }
 
+    // dynamic resize of input textarea
     useEffect(() => {
         const textInput = ref.current;
         if (!textInput) return;
 
+        // reset height to "auto" so the browser recalculates the correct scrollHeight
         textInput.style.height = "auto";
 
-        const lineHeight = 24;
-        const maxHeight = lineHeight * 3;
+        // Define line height and maximum allowed height
+        const lineHeight = 24; // each line is ~24px tall
+        const maxHeight = lineHeight * 3; // limit to 3 lines of text
 
+        // adjust the height dynamically:
+        // - use the element's scrollHeight (actual content height)
+        // - cap it at the maxHeight so it doesn’t keep growing indefinitely
         textInput.style.height = Math.min(textInput.scrollHeight, maxHeight) + "px";
     }, [text]);
 
+    // handle imoji select (insert into text)
     const handleEmojiSelect = (emoji) => {
+        // get text area via ref
         const input = ref.current;
+
+        // get the current cursor position
         const start = input.selectionStart;
         const end = input.selectionEnd;
 
-        const before = text.slice(0, start);
-        const after = text.slice(end);
+        // Split text around the cursor
+        const before = text.slice(0, start); // text before the cursor
+        const after = text.slice(end); // text after the cursor
 
+        // construct new text by inserting emoji at the cursor position
         const newText = before + emoji.native + after;
+
+        // update state with new text
         setText(newText);
     };
 
+    // handle send message
     const handleSendMessage = async () => {
         if(loading) return;
+        setLoading(true);
         try {
-            setLoading(true);
+            // get message receiver if it's private chat (receiverID will be used if chat is not created yet i.e. first message of the chat)
             let receiver = null;
             if(!chat.isGroup && !chat.chatID) {
                 receiver = chat.participants.filter(p => p.userID !== authUser.userID)[0];
@@ -84,6 +133,7 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                 onSendMessage(res.chat);
             }
 
+            // clear states
             setText("");
             setImgPreview(null);
             setReplyTo(null);
@@ -95,10 +145,11 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
         }
     }
 
+    // handle edit message
     const handleEditMessage = async () => {
         if(loading || !edit) return;
+        setLoading(true);
         try {
-            setLoading(true);
             const res = await editMessage(edit.messageID, text);
 
             if(res?.updatedMessage) {
@@ -107,6 +158,7 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                 onEditMessage(edit.chatID, edit.messageID, text);
             }
 
+            // clear states
             setText("");
             setImgPreview(null);
             setEdit(null);
@@ -121,12 +173,14 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
 
   return (
     <div className={`px-3 pb-3 mt-2 w-full relative`}>
+        {/* uploaded image preview */}
         {imgPreview && (
             <div className='mb-3 flex items-center gap-2 absolute -top-25 z-10'>
                 <div className='relative'>
                     <img 
                         src={imgPreview} className='w-25 h-25 object-cover rounded-lg border-1 border-light-300 dark:border-dark-300'
                     />
+                    {/* remove image button */}
                     <button
                         type='button'
                         onClick={removeImage}
@@ -137,18 +191,27 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                 </div>
             </div>
         )}
+        {/* replyTo message informations */}
         {
             replyTo && (
-                <div className='w-full border-t-1 border-light-txt2 dark:border-dark-txt2 flex items-center gap-4 py-1 px-8'>
-                    { replyTo.groupInvite ? <Mail className='size-8' /> : (replyTo.image && !replyTo.text) ? <FileImage className='size-8' /> : <MessageSquareQuote className='size-8' />}
-                    <div className='flex-1 flex flex-col'>
-                        <span className='text-light-txt dark:text-dark-txt text-lg font-bold'>Reply to :</span>
-                        <span className='text-light-txt2 dark:text-dark-txt2 truncate'>
-                            { replyTo.groupInvite ? 'Group Invite' : (replyTo.image && !replyTo.text) ? 'Photo' : replyTo.text}            
-                        </span>
+                <div className='w-full border-t-1 border-light-txt2 dark:border-dark-txt2 flex items-center justify-between gap-2 py-1 px-2 lg:px-8'>
+                    <div className='flex items-center gap-2 lg:gap-4 max-w-[85%]'>
+                        {/* icon based on message type (groupInvite/ photo/ text) */}
+                        { replyTo.groupInvite ? <Mail className='size-6 lg:size-8' /> : (replyTo.image && !replyTo.text) ? <FileImage className='size-6 lg:size-8' /> : <MessageSquareQuote className='size-6 lg:size-8' />}
+                        {/* message infos */}
+                        <div className='flex-1 flex flex-col max-w-[85%]'>
+                            {/* "reply to:" title */}
+                            <span className='text-light-txt dark:text-dark-txt text-sm lg:text-lg font-bold'>Reply to :</span>
+                            {/* message type (group invite/ photo/ text) */}
+                            <span className='text-light-txt2 dark:text-dark-txt2 truncate text-sm'>
+                                { replyTo.groupInvite ? 'Group Invite' : (replyTo.image && !replyTo.text) ? 'Photo' : replyTo.text}            
+                            </span>
+                        </div>
                     </div>
+                    {/* cancel reply button */}
                     <button 
-                        className='hover:bg-light-300 hover:dark:bg-dark-300 p-3 rounded-full cursor-pointer text-light-txt2 dark:text-dark-txt2'
+                        className='hover:bg-light-300 hover:dark:bg-dark-300 p-1
+                        .5 lg:p-3 rounded-full cursor-pointer text-light-txt2 dark:text-dark-txt2'
                         onClick={() => setReplyTo(null)}
                     >
                         <X className='size-6' />
@@ -156,13 +219,18 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                 </div>
             )
         }
+        {/* edit message */}
         {
             edit && (
-                <div className='w-full border-t-1 border-light-txt2 dark:border-dark-txt2 flex items-center gap-4 py-1 px-8'>
-                    <SquarePen className='size-8' />
-                    <div className='flex-1 text-light-txt dark:text-dark-txt text-lg font-bold'>Edit :</div>
+                <div className='w-full border-t-1 border-light-txt2 dark:border-dark-txt2 flex items-center justify-between gap-2 py-1 px-2 lg:px-8'>
+                    {/* "edit:" title */}
+                    <div className='flex items-center gap-2 lg:gap-4 max-w-[85%] ml-4'>
+                        <SquarePen className='size-6 lg:size-8' />
+                        <div className='flex-1 text-light-txt dark:text-dark-txt text-lg font-bold'>Edit :</div>
+                    </div>
+                    {/* cancel edit button */}
                     <button 
-                        className='hover:bg-light-300 hover:dark:bg-dark-300 p-3 rounded-full cursor-pointer text-light-txt2 dark:text-dark-txt2'
+                        className='hover:bg-light-300 hover:dark:bg-dark-300 p-1.5 lg:p-3 rounded-full cursor-pointer text-light-txt2 dark:text-dark-txt2'
                         onClick={() => { setEdit(null); setText('')}}
                     >
                         <X className='size-6' />
@@ -170,9 +238,11 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                 </div>
             )
         }
+        {/* input & buttons form */}
         <form 
             className='flex items-center justify-center gap-2'
         >
+            {/* image input */}
             <input 
                 type="file"
                 accept='image/*'
@@ -180,15 +250,17 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                 ref={fileInputRef}
                 onChange={handleImageSelect} 
             />
+            {/* image trigger button (opens image uploader) */}
             <button
-                title='Add image'
+                title={edit ? 'You can only edit the text' : 'Add image'}
                 type='button'
-                className={`hover:bg-light-300 hover:dark:bg-dark-300 p-3 rounded-full cursor-pointer ${imgPreview ? "text-secondary" : "text-light-txt2 dark:text-dark-txt2"}`}
+                className={`hover:bg-light-300 hover:dark:bg-dark-300 p-1.5 lg:p-3 rounded-xl ${edit ? 'cursor-not-allowed' : 'cursor-pointer'} ${imgPreview ? "text-secondary" : "text-light-txt2 dark:text-dark-txt2"}`}
                 onClick={() => fileInputRef.current?.click()}
                 disabled={edit ? true : false}
             >
-                <Image className='size-6'/>
+                <Image className='size-5 lg:size-6'/>
             </button>
+            {/* message text input */}
             <textarea 
                 ref={ref}
                 placeholder='Type something...'
@@ -196,8 +268,9 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                 onChange={(e) => setText(e.target.value)}
                 rows={1}
                 maxLength={15000}
-                className='p-3 pl-4 w-full rounded-3xl outline-0 focus:outline-2 resize-none
+                className='p-1.5 lg:p-3 pl-2.5 lg:pl-4 w-full rounded-xl outline-0 focus:outline-2 resize-none text-sm lg:text-[16px]
                 outline-secondary bg-light-300 text-light-txt dark:bg-dark-300 dark:text-dark-txt' 
+                // handle press enter to submit (shift + enter to jump to next line) 
                 onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault(); 
@@ -205,17 +278,22 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                     }
                 }}
             />
+            {/* emoji button */}
             <div className='relative'>
+                {/* trigger emoji picker visibility */}
                 <button
-                    title='Add emoji'
+                    title={showPicker ? 'Close emoji picker' : 'Add emoji'}
                     type='button'
-                    className={`hover:bg-light-300 hover:dark:bg-dark-300 p-3 rounded-full cursor-pointer ${showPicker ? "text-secondary" : "text-light-txt2 dark:text-dark-txt2"}`}
+                    className={`hover:bg-light-300 hover:dark:bg-dark-300 p-1.5 lg:p-3 rounded-xl cursor-pointer ${showPicker ? "text-secondary" : "text-light-txt2 dark:text-dark-txt2"}`}
                     onClick={() => setShowPicker(!showPicker)}
                 >
-                    <Laugh className='size-6'/>
+                   {
+                    showPicker ? <X className='size-5 lg;size-6'/> : <Laugh className='size-5 lg;size-6'/> 
+                   }
                 </button>
+                {/* emoji picker */}
                 { showPicker && (
-                    <div className='flex items-center justify-center absolute -top-[440px] right-0 shadow-2xl rounded-lg'>
+                    <div className='flex items-center justify-center absolute  -top-[450px] lg:-top-[440px] -right-[150%] lg:right-0 shadow-2xl rounded-lg'>
                         <Picker 
                             onEmojiSelect={handleEmojiSelect} 
                             data={data}
@@ -226,22 +304,25 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                         />
                     </div> 
                 )}
-            </div> 
+            </div>
+            {/* submit buttons */}
             { edit ? 
+                // check button in case it's edit
                 <PrimaryButton 
                     type='button'
                     toolip='Save'
-                    leftIcon={<CircleCheck className='size-6' />}
-                    className='p-3 rounded-3xl'
+                    leftIcon={<CircleCheck className='size-5 lg:size-6' />}
+                    className='p-2 lg:p-3 rounded-xl'
                     disabled={!text || (text == edit.text)}
                     loading={loading}
                     onClick={handleEditMessage}
                 /> :
+                // send button
                 <PrimaryButton 
                     type='button'
                     toolip='Send'
-                    leftIcon={<Send className='size-6' />}
-                    className='py-3 px-5 rounded-3xl'
+                    leftIcon={<Send className='size-5 lg:size-6' />}
+                    className='py-2 px-2 lg:py-3 lg:px-5 rounded-xl'
                     disabled={!text && !imgPreview}
                     loading={loading}
                     onClick={handleSendMessage}

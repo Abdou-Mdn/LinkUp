@@ -1,4 +1,7 @@
+// reusable time utility functions
 
+// format a date into "Month Day<suffix>, Year"
+// example: "September 9th, 2025"
 const formatDateWithSuffix = (inputDate) => {
   const date = new Date(inputDate);
 
@@ -9,7 +12,7 @@ const formatDateWithSuffix = (inputDate) => {
 
   const month = date.toLocaleString('default', { month: 'long' });
 
-  // Helper function to get ordinal suffix
+  // Helper function to get ordinal suffix (st, nd, rd, th)
   const getOrdinalSuffix = (n) => {
     const j = n % 10,
           k = n % 100;
@@ -22,7 +25,9 @@ const formatDateWithSuffix = (inputDate) => {
   return `${month} ${getOrdinalSuffix(day)}, ${year}`;
 }
 
-const timeSince = (inputDate) => {
+// human-friendly relative time formatter
+// examples: "45s ago", "12min ago", "3h ago", "2d ago", "3w ago", "since September 9th, 2025"
+const timeSince = (inputDate, text="since") => {
   const now = new Date();
   const past = new Date(inputDate);
   if (isNaN(past.getTime())) return "Invalid Date";
@@ -35,9 +40,11 @@ const timeSince = (inputDate) => {
   if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
   if (diff < 2629800) return `${Math.floor(diff / 604800)}w ago`; // ~1 month (30.44 days)
   
-  return `since ${formatDateWithSuffix(past)}`;
+  return `${text} ${formatDateWithSuffix(past)}`;
 };
 
+// format time as HH:mm (24 hour format)
+// examples: "09:05", "18:42"
 function formatTime(date) {
   const d = new Date(date);
   const hours = d.getHours().toString().padStart(2, "0");
@@ -45,6 +52,7 @@ function formatTime(date) {
   return `${hours}:${minutes}`;
 }
 
+// checks if two dates are on different calendar days
 function isDifferentDay(date1, date2) {
   const d1 = date1 instanceof Date ? date1 : new Date(date1);
   const d2 = date2 instanceof Date ? date2 : new Date(date2);
@@ -56,6 +64,8 @@ function isDifferentDay(date1, date2) {
   );
 }
 
+// format chat dates (Today/ Yesterday / Full date with suffix)
+// used for messages grouping
 function formatChatDate(date) {
   const today = new Date();
   const yesterday = new Date();

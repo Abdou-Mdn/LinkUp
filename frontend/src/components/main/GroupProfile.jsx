@@ -1,39 +1,79 @@
 import React, { useEffect, useRef, useState } from 'react'
-import ProfileSkeleton from '../skeleton/ProfileSkeleton'
-import { useAuthStore } from '../../store/auth.store'
 import { CalendarCheck, Clock, Ghost, Handshake, Hourglass, TriangleAlert, UserPlus, Users } from 'lucide-react'
+import toast from 'react-hot-toast'
+
+import { useAuthStore } from '../../store/auth.store'
+
 import { formatDateWithSuffix } from '../../lib/util/timeFormat'
+
+import TertiaryButton from '../TertiaryButton'
 import GroupButtons from '../GroupButtons'
 import MemberPreview from '../previews/MemberPreview'
 import JoinRequestPreview from '../previews/JoinRequestPreview'
-import TertiaryButton from '../TertiaryButton'
+import AddMemberModal from '../layout/AddMemberModal'
 import EditGroupModal from '../layout/EditGroupModal'
+import ProfileSkeleton from '../skeleton/ProfileSkeleton'
 import ProfilePreviewSkeleton from '../skeleton/ProfilePreviewSkeleton'
 import RequestPreviewSkeleton from '../skeleton/RequestPreviewSkeleton'
-import AddMemberModal from '../layout/AddMemberModal'
-import toast from 'react-hot-toast'
 
+/* 
+ * GroupProfile component
+ * Main container for group profiles.
+
+ * - Displays group infos: banner, image, name, description, date the group was created, members count.
+ * - Displays action buttons based on user's role (visitor/ member/ admin).
+ * - Visitor can see only group infos, connected members (friends), action button (send/cancel join request) .
+ * - Member can see group infos, members list, action buttons (open chat, leave group), member can also invite friends to join the group
+ * - Admin can see and edit group info, members list, requests list, action buttons (open chat, edit group, leave group), admin can add friends to group
+ 
+ * Uses utility function: `formatDateWithSuffix
+
+ * params:
+ * - group: object infos to display
+ * - setGroup: setter to update group
+ * - loading: loading state
+ * - friendMembers: connected members list
+ * - members: members list
+ * - setMembers: setter to update members list
+ * - loadMoreMembers: infinite scroll in members list
+ * - loadingMoreMembers: loading state for members list
+ * - requests: join requests list
+ * - setRequests: setter to update requests list
+ * - loadMoreRequests: infinite scroll in requests list
+ * - loadingMoreRequests: loading state in requests list
+ * - updateList: function to update groups list in discover page
+ * - updateAdminGroups: function to update admin groups list in groups page
+ * - updateMemberGroups: function to update member groups list in groups page
+ * - updateRequestsList: function to update sent join requests list in groups page
+*/
 const GroupProfile = ({ 
     group, setGroup, loading, friendMembers, 
     members, setMembers, loadMoreMembers, loadingMoreMembers, 
     requests, setRequests, loadMoreRequests, loadingMoreRequests,
     updateList, updateAdminGroups, updateMemberGroups, updateRequestList
   }) => {
+  
+  // render skeleton while still loading infos
   if(loading || !group) {
     return  <ProfileSkeleton />
   }
 
   const { authUser } = useAuthStore();
 
+  // check if user is admin
   const isAdmin = group.admins.includes(authUser.userID);
+  // check if user is member
   const isMember = group.members.some(m => m.user == authUser.userID);
 
+  // modals visibility states
   const [editModal, setEditModal] = useState(false);
   const [addModal, setAddModal] = useState(false);
 
+  // loaders for infinit scroll
   const membersLoaderRef = useRef(null);
   const requestsLoaderRef = useRef(null);
 
+  // set up IntersectionObserver to load more members when loader is vsible 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -52,6 +92,7 @@ const GroupProfile = ({
     return () => observer.disconnect();
   }, [membersLoaderRef.current]);
 
+  // set up IntersectionObserver to load more requests when loader is vsible
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -70,6 +111,7 @@ const GroupProfile = ({
     return () => observer.disconnect();
   }, [requestsLoaderRef.current]);
 
+  // handle updates on send join request
   const onJoin = (group, request) => {
     setGroup(group);
     if(updateRequestList) {
@@ -77,6 +119,7 @@ const GroupProfile = ({
     }
   }
 
+  // handle updates on cancel join request
   const onCancelRequest = (group) => {
     setGroup(group);
     if(updateRequestList) {
@@ -84,6 +127,7 @@ const GroupProfile = ({
     }
   }
 
+  // handle updates on leave group
   const onLeave = (group, groupID) => {
     setGroup(group);
     if(!group) toast('Group and all related data are deleted', { icon: <TriangleAlert className='size-6 text-danger' />});
@@ -102,6 +146,7 @@ const GroupProfile = ({
     }
   }
 
+  // handle updates on add member
   const onAddMembers = (group, addedUsers) => {
     setGroup(group);
     if(updateList) {
@@ -117,6 +162,7 @@ const GroupProfile = ({
     setMembers(prev => [...prev, ...addedUsers]);
   }
 
+  // handle updates on remove member
   const onRemoveMember = (group, userID) => {
     setGroup(group);
     if(updateList) {
@@ -132,15 +178,17 @@ const GroupProfile = ({
     setMembers(prev => prev.filter(m => m.userID !== userID));
   }
 
+  // handle updates on promote member to admin
   const onPromoteToAdmin = (group) => {
     setGroup(group)
   }
 
+  // handle updates on demote admin to member
   const onDemoteFromAdmin = (group) => {
     setGroup(group)
   }
 
-  
+  // handle updates on accept join request
   const onAcceptRequest = (group, addedUser) => {
     setGroup(group);
     if(updateList) {
@@ -157,11 +205,13 @@ const GroupProfile = ({
     setMembers(prev => [...prev, addedUser]);
   }
 
+  // handle updates on decline join request
   const onDeclineRequest = (group, userID) => {
     setGroup(group);
     setRequests(prev => prev.filter(r => r.userID !== userID));
   }
 
+  // handle updates on update group
   const onUpdate = (group) => {
     setGroup(group);
     if(updateAdminGroups){
@@ -172,6 +222,7 @@ const GroupProfile = ({
     }
   }
 
+  // handle updates on delete group
   const onDelete = (groupID) => {
     setGroup(null);
     if(updateAdminGroups) {
@@ -186,18 +237,19 @@ const GroupProfile = ({
     <>
       <div className='size-full bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'>
         {/* pictures */}
-        <div className='w-full h-[270px] relative'>
+        <div className='w-full h-[190px] lg:h-[270px] relative'>
           {/* banner image */}
           {
-            group.banner ? <img src={group.banner} className='w-full h-[200px] object-cover' /> :
-            <div className='w-full h-[200px] bg-light-300 dark:bg-dark-300'></div> 
+            group.banner ? <img src={group.banner} className='w-full h-[140px] lg:h-[200px] object-cover' /> :
+            <div className='w-full h-[140px] lg:h-[200px] bg-light-300 dark:bg-dark-300'></div> 
           }
           {/* group image */}
-          <img src={group.image ? group.image : "/assets/group-avatar.svg"} className='size-[150px] rounded-[50%] absolute left-8 bottom-0 border-4 border-light-100 dark:border-dark-100' />
+          <img src={group.image ? group.image : "/assets/group-avatar.svg"} className='size-[100px] lg:size-[150px] rounded-full absolute left-4 lg:left-8 bottom-0 border-4 border-light-100 dark:border-dark-100' />
         </div>
         {/* main infos */}
         <div className='w-full p-3 mb-2 lg:pl-10 relative'>
-          <span className='text-2xl font-bold'>{group.name}</span>
+          {/* name */}
+          <span className='text-xl lg:text-2xl font-bold'>{group.name}</span>
           {/* action buttons */}
           <GroupButtons 
             group={group} 
@@ -206,17 +258,20 @@ const GroupProfile = ({
             onCancelRequest={onCancelRequest}
             onLeave={onLeave}
           />
-          <p className='mt-1 text-light-txt2 dark:text-dark-txt2 w-[75%] min-w-[350px]'>{group.description}</p>
+          {/* description */}
+          <p className='mt-1 text-sm lg:text-normal text-light-txt2 dark:text-dark-txt2 w-[75%] min-w-[350px] whitespace-pre-wrap'>{group.description}</p>
         </div>
         {/* additional infos */}
         <div className='w-full p-2'>
           <div className='flex flex-col gap-2 w-full lg:w-1/2'>
             {/* informations */}
             <div className='w-full pl-3 lg:pl-8'>
+              {/* created at */}
               <p className='flex gap-2 py-2'>
                 <CalendarCheck className='size-6' />
                 Created : {formatDateWithSuffix(group.createdAt)}
               </p>
+              {/* members count */}
               { !isMember &&
                 <p className='flex gap-2 py-2'>
                   <Users className='size-6' />
@@ -224,7 +279,7 @@ const GroupProfile = ({
                 </p>
               }
             </div>
-            {/* friend members */}
+            {/* friend members (only visitor) */}
             {
               !isMember && !isAdmin && friendMembers?.length > 0 && (
                 <div className='w-full flex flex-col px-3 lg:px-8 max-h-[450px]'>
@@ -274,7 +329,7 @@ const GroupProfile = ({
                     <TertiaryButton 
                       text={isAdmin ? "Add Member" : "Invite friend"} 
                       leftIcon={<UserPlus className='size-5' />} 
-                      className='py-1 px-2'
+                      className='py-1 px-2 text-sm lg:text-normal'
                       onClick={() => setAddModal(true)} 
                     />
                   </div>
@@ -298,9 +353,11 @@ const GroupProfile = ({
                         )
                       })
                     }
+                    {/* display skeletons while loading more members */}
                     {
                       loadingMoreMembers && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
                     }
+                    {/* sentinal div for loading more members */}
                     { 
                       <div ref={membersLoaderRef}></div>
                     }
@@ -308,7 +365,7 @@ const GroupProfile = ({
                 </div>
               )
             }
-            {/* join requests */}
+            {/* join requests (admin only) */}
             {
               isAdmin && (
                 <div className='w-full flex flex-col px-3 lg:px-8 max-h-[450px] lg:w-1/2'>
@@ -322,6 +379,7 @@ const GroupProfile = ({
                     </span>
                   </div>
                   <ul className='bg-light-200 dark:bg-dark-200 h-full overflow-y-scroll'>
+                    {/* placeholder for empty requests list */}
                     {
                       requests.length == 0 ? (
                         <div className='flex-1 py-10 flex flex-col items-center gap-2'> 
@@ -329,12 +387,22 @@ const GroupProfile = ({
                           No pending requests 
                         </div> 
                       ) : (
-                        requests.map(r => <JoinRequestPreview key={r.userID} request={r} groupID={group.groupID} onAccept={onAcceptRequest} onDecline={onDeclineRequest} />)
+                        requests.map(r => (
+                          <JoinRequestPreview 
+                            key={r.userID} 
+                            request={r} 
+                            groupID={group.groupID} 
+                            onAccept={onAcceptRequest} 
+                            onDecline={onDeclineRequest} 
+                          />
+                        ))
                       )
                     }
+                    {/* display skeletons while loading more members */}
                     {
                       loadingMoreRequests && Array.from({ length: 2 }).map((_, i) => <RequestPreviewSkeleton key={i} />)
                     }
+                    {/* sentinal div for loading more requests */}
                     { 
                       <div ref={requestsLoaderRef}></div>
                     }
@@ -345,6 +413,7 @@ const GroupProfile = ({
           </div>  
         </div>
       </div>
+      {/* edit group modal */}
       {
         editModal && 
         <EditGroupModal 
@@ -354,6 +423,7 @@ const GroupProfile = ({
           onDelete={onDelete}
         />
       }
+      {/* add members modal */}
       {
         addModal && 
         <AddMemberModal 

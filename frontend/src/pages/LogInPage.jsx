@@ -1,31 +1,42 @@
 import React, { useState} from 'react';
-import { Eye, EyeClosed } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import PrimaryButton from '../components/PrimaryButton';
 import { useAuthStore } from '../store/auth.store';
-import ForgotPasswordModal from '../components/layout/ForgotPasswordModal';
 
+import PrimaryButton from '../components/PrimaryButton';
+import ForgotPasswordModal from '../components/layout/ForgotPasswordModal';
+import TextInput from '../components/TextInput';
+
+/* 
+ * Login Page
+ * used to sign in to an existing account, needs email and password to log in
+
+ * displays a login form and an additional infos on the side
+*/
 function LogInPage() {
   const { login, isLoggingIn } = useAuthStore();
 
-  const [displayModal, setDisplayModal] = useState(false)
-  const [showPassword, setShowPassword] = useState(false);
+  // management states
+  const [displayModal, setDisplayModal] = useState(false); // forgot password modal visibility
+  // form inputs texts
   const [formData, setFormData] = useState({
     email: "",
     password: ""
   });
+  // form errors states
   const [formErrors, setFormErrors] = useState({
     email: "",
     password: ""
   });
 
+  // validate form before submitting
   const validateForm = () => {
     let isValid = true;
     let errors = {
       email: "",
       password: ""
     }
+    // validate email (cannot be empty, and should be of correct format)
     if(!formData.email.trim()) {
       errors.email = "Email is required";
       isValid = false;
@@ -34,6 +45,7 @@ function LogInPage() {
       isValid = false;
     }
 
+    // validate password (cannot be empty, or under 8 characters)
     if(!formData.password.trim()) {
       errors.password = "Password is required";
       isValid = false;
@@ -46,6 +58,7 @@ function LogInPage() {
     return isValid;
   }
 
+  // handle login
   const handleSubmit = (event) => {
     event.preventDefault();
 
@@ -53,8 +66,6 @@ function LogInPage() {
 
     if(success === true) login(formData);
   }
-
-  const handleGoogleLogin = () => {}
 
   return (
     <div className='min-h-screen flex flex-col md:flex-row'>
@@ -65,119 +76,83 @@ function LogInPage() {
           <img src='/assets/logo.svg' className='size-8' />
           <h1 className='font-outfit text-2xl font-bold text-light-txt'>LinkUp</h1>
         </div>
+        
+        {/* text */}
         <div>
           <h2 className='font-semibold text-center text-light-txt'>Welcome Back</h2>
           <span className='text-sm text-center text-light-txt2'>Sign in to your account</span>
         </div>
-
-        {/* google login button */}
-        <button
-          onClick={handleGoogleLogin}
-          className='w-[75%] max-w-[370px] flex flex-row gap-4 items-center justify-center bg-light-100 text-light-txt p-2 rounded-4xl cursor-pointer border-2 border-transparent hover:border-secondary'
-        >
-          <img src='/assets/google-logo.svg' className='size-5' />
-          Log in with Google 
-        </button>
-
+        
         {/* form */}
         <form onSubmit={handleSubmit} className='w-[75%] max-w-[370px] flex flex-col gap-4'>
           {/* email input */}
-          <div className='w-full'>
-            <label htmlFor='email' className='font-outfit text-xs text-light-txt2 pl-1'>
-              Email
-            </label>                
-            <input 
-              id='email'
-              type="text"
-              autoComplete='off'
-              className={`p-1 w-full outline-0 
-                ${ formErrors.email ? 'border-b-2 border-danger text-danger' : 
-                  'border-b-1 border-light-txt2 focus:border-b-2 focus:border-light-txt text-light-txt'}  
-              `} 
-              placeholder='you@example.com'
-              value={formData.email}
-              onChange={(e) => {
-                setFormData({...formData, email: e.target.value})
-                if (formErrors.email) setFormErrors({ ...formErrors, email: ""});
-              }}
-            />
-            <span className={`text-xs ${formErrors.email ? 'text-danger' : 'text-transparent'}`}>
-              { formErrors.email || "placeholder" }
-            </span>
-          </div>
+          <TextInput
+            label='Email'
+            placeholder='you@example.com'
+            isPassword={false}
+            value={formData.email}
+            onChange={(e) => {
+              setFormData({...formData, email: e.target.value})
+              if (formErrors.email) setFormErrors({ ...formErrors, email: ""});
+            }}
+            error={formErrors.email}
+            darkTheme={false}
+            fullWidth={true}
+          />
+          
           {/* password input */}
-          <div className='w-full'>
-            <label htmlFor='password' className='font-outfit text-xs text-light-txt2 pl-1'>
-              Password
-            </label>   
-            <div className='relative'>             
-              <input 
-                id='password'
-                type={showPassword ? "text" : "password"}
-                autoComplete='off'
-                className={`p-1 w-full outline-0 
-                ${ formErrors.password ? 'border-b-2 border-danger text-danger' : 
-                  'border-b-1 border-light-txt2 focus:border-b-2 focus:border-light-txt text-light-txt'}  
-                `} 
-                placeholder='••••••••'
-                value={formData.password}
-                onChange={(e) => {
-                setFormData({...formData, password: e.target.value})
-                  if (formErrors.password) setFormErrors({ ...formErrors, password: ""});
-                }}
-              />
-              <button
-                type='button'
-                className='absolute inset-y-0 right-0 flex items-center cursor-pointer'
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                { showPassword ? (
-                  <Eye className='size-5 text-light-txt2' />
-                ): (
-                  <EyeClosed className='size-5 text-light-txt2' />
-                )
-                }
-              </button>
-            </div>
-            <div className='flex items-center justify-between'>
-                <span className={`text-xs ${formErrors.password ? 'text-danger' : 'text-transparent'}`}>
-                    { formErrors.password || "placeholder" }
-                </span>
-                <button 
-                    type='button' 
-                    className='text-sm cursor-pointer text-primary hover:text-secondary hover:underline'
-                    onClick={() => setDisplayModal(true)}
-                >
-                    Forgot your password ?
-                </button>
-            </div>
-          </div>
+          <TextInput
+            label='Password'
+            isPassword={true}
+            placeholder='••••••••'
+            value={formData.password}
+            onChange={(e) => {
+            setFormData({...formData, password: e.target.value})
+              if (formErrors.password) setFormErrors({ ...formErrors, password: ""});
+            }}
+            error={formErrors.password}
+            openModal={() => setDisplayModal(true)}
+            darkTheme={false}
+            fullWidth={true}
+          />
+          
+          {/* submit button (login) */}
           <PrimaryButton 
             type="submit"
             text="Login"
+            className='w-full p-3'
             loading={isLoggingIn}
           />
         </form>
-        {/* link to login page*/}
+
+        {/* link to signup page*/}
           <div className='text-center'>
               <p className='text-light-txt2'>
                 Don&apos;t have an account? {" "}
-                <Link to='/signup' className='text-primary underline' >
+                <Link to='/signup' className='text-primary hover:text-secondary hover:underline' >
                   Sign Up
                 </Link>
               </p>
           </div>
       </div>
+
       {/* right side ** IMAGE ** */}
       <div className='bg-light-100 hidden md:flex flex-1 flex-col justify-center items-center p-6 gap-1'>
+        {/* sub title */}
         <h2 className='text-xl font-semibold text-center text-light-txt'>
           Your Conversations, All in One Place
         </h2>
+
+        {/* image */}
         <img src="/assets/Chatting-friend.gif" className='w-[70%]' />
+        
+        {/* text */}
         <span className='text-center text-light-txt2'>
           Sign in to continue your conversations and catch up with your messages.
         </span>
       </div>
+
+      {/* forgot password modal */}
       {
         displayModal && <ForgotPasswordModal onClose={() => setDisplayModal(false)} darkTheme={false} />
       }

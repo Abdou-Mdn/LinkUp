@@ -32,8 +32,19 @@
 
     /* fonts */
     --font-outfit: "Outfit", sans-serif; 
+
+    /* font sizes */
+    --text-normal: 16px
 }
 
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.75; }
+}
+
+.animate-breathe {
+  animation: breathe 1.5s ease-in-out infinite;
+}
 
 .scrollbar {
     scrollbar-width: thin;

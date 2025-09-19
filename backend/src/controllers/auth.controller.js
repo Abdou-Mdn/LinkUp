@@ -4,7 +4,6 @@ const bcrypt = require("bcrypt");
 const generateToken = require("../lib/utils");
 const transporter = require("../lib/nodemailer");
 const jwt = require("jsonwebtoken")
-
 const htmlTemplate = (username, otp) => (
     `
         <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
@@ -153,7 +152,6 @@ const checkAuth = (req,res) => {
         res.status(500).json({"message": "Internal server error"});
     }
 }
-
 const verifyEmail = async (req, res) => {
     try {
         const { email } = req.body;

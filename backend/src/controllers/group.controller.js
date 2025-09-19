@@ -309,7 +309,7 @@ const createGroup = async (req, res) => {
 
         await savedChat.save();
         
-        res.status(201).json({ group: savedGroup});
+        res.status(201).json({ message: "Group created successfully", group: savedGroup});
 
     } catch (error) {
         console.error("Error in create group controller:", error.message);
@@ -614,7 +614,6 @@ const removeMember = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 }
-
 
 const addAdmin = async (req, res) => {
     try {

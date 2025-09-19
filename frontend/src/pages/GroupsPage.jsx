@@ -1,26 +1,57 @@
 import React, { useRef, useState, useEffect } from 'react'
-import ResponsiveLayout from '../components/layout/ResponsiveLayout'
 import { Ghost, Plus } from 'lucide-react';
-import CreateGroupModal from '../components/layout/CreateGroupModal';
-import { getAdminGroups, getFriendMembers, getGroupDetails, getJoinRequests, getMemberGroups, getMembers, getSentJoinRequests } from '../lib/api/group.api';
-import ProfilePreviewSkeleton from '../components/skeleton/ProfilePreviewSkeleton';
-import GroupPreview from '../components/previews/GroupPreview';
+
 import { useLayoutStore } from '../store/layout.store';
+
+import { getAdminGroups, getFriendMembers, getGroupDetails, getJoinRequests, getMemberGroups, getMembers, getSentJoinRequests } from '../lib/api/group.api';
+
+import ResponsiveLayout from '../components/layout/ResponsiveLayout'
 import MobileHeader from '../components/layout/MobileHeader';
 import GroupProfile from '../components/main/GroupProfile';
+import ProfilePreviewSkeleton from '../components/skeleton/ProfilePreviewSkeleton';
+import GroupPreview from '../components/previews/GroupPreview';
 import RequestPreviewSkeleton from '../components/skeleton/RequestPreviewSkeleton';
 import SentJoinRequestPreview from '../components/previews/SentJoinRequestPreview';
+import TertiaryButton from '../components/TertiaryButton';
+import CreateGroupModal from '../components/layout/CreateGroupModal';
 
+
+/* 
+ * Aside component
+ * displays a sidebar with two tabs Groups, Sent join requests
+
+ * - Groups: displays a button to create a new group, two lists (groups i'm admin of & groups i'm member of) both are expandable
+ * - Sent requests: displays the list of sent join requests
+ * - all lists have infinite scroll
+ 
+ * params:
+ * - activeTab: state controls which tab is currently active
+ * - setActiveTab: setter to update the active tab
+ * - view: state controls which view is open (admin groups, member groups, or both)
+ * - setView: setter to update the open view
+ * - setIsModalActive: setter to update the create group modal visibility
+ * - memberGroups: list of groups i'm only member of to display
+ * - adminGroups: list of groups i'm admin of to display
+ * - requests: list of sent join requests to display
+ * - setRequests: update sent join requests list (after caneling a request)
+ * - loadMore: function to load more data (groups/requests) based on active tab
+ * - loading: initial loading state
+ * - loadingMore: loading more state
+ * - selectedGroup: currently selected group
+ * - setGroup: update group profile
+ * - selectGroup: open a group profile to display on main
+*/
 const Aside = ({
   activeTab, setActiveTab, view, setView, setIsModalActive,
   memberGroups, adminGroups, requests, setRequests, loadMore, loading, loadingMore,
   selectedGroup, selectGroup, setGroup
 }) => {
-
+  // loader refs
   const memberLoaderRef = useRef(null);
   const adminLoaderRef = useRef(null);
   const requestLoaderRef = useRef(null);
 
+  // setup IntersectionObserver for infinite scroll
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -33,12 +64,14 @@ const Aside = ({
       }
     );
 
+    // select loader to which we attach the observer
     const target = activeTab == "requests" ? requestLoaderRef.current : view == "member" ? memberLoaderRef.current : adminLoaderRef.current;
     if(target) observer.observe(target);
 
     return () => observer.disconnect();
   }, [view, activeTab, loading, loadingMore]);
 
+  // update sent requests afetr canceling a request
   const onCancelRequest = (group) => {
     setRequests(prev => prev.filter(r => r.groupID !== group.groupID));
     if(selectedGroup?.groupID == group.groupID) setGroup(group);
@@ -49,132 +82,155 @@ const Aside = ({
     bg-light-200 text-light-txt dark:bg-dark-200 dark:text-dark-txt'>
       {/* tabs */}
       <div className='flex items-center justify-between w-full gap-1'>
-        <div title='Groups' className={`flex-1 py-3 text-sm font-outfit font-medium text-center cursor-pointer border-b-2
-          ${activeTab == "groups" ? 'text-primary border-primary border-b-4' : 
-            'text-light-txt dark:text-dark-txt border-light-txt dark:border-dark-txt hover:text-light-txt2 dark:hover:text-dark-txt2 hover:border-light-txt2 dark:hover:border-dark-txt2'
-          }`}
+        {/* groups */}
+        <div 
+          title='Groups' 
+          className={`flex-1 py-3 text-sm font-outfit font-medium text-center cursor-pointer border-b-2 ${activeTab == "groups" ? 'text-primary border-primary border-b-4' : 'text-light-txt dark:text-dark-txt border-light-txt dark:border-dark-txt hover:text-light-txt2 dark:hover:text-dark-txt2 hover:border-light-txt2 dark:hover:border-dark-txt2'}`}
           onClick={() => setActiveTab("groups")}
         >
           My Groups
         </div>
-        <div title='Sent Requests' className={`flex-1 py-3 text-sm font-outfit font-medium text-center cursor-pointer border-b-2 truncate
-          ${activeTab == "requests" ? 'text-primary border-primary border-b-4' : 
-            'text-light-txt dark:text-dark-txt border-light-txt dark:border-dark-txt hover:text-light-txt2 dark:hover:text-dark-txt2 hover:border-light-txt2 dark:hover:border-dark-txt2'
-          }`}
+
+        {/* sent requests */}
+        <div 
+          title='Sent Requests' 
+          className={`flex-1 py-3 text-sm font-outfit font-medium text-center cursor-pointer border-b-2 truncate ${activeTab == "requests" ? 'text-primary border-primary border-b-4' : 'text-light-txt dark:text-dark-txt border-light-txt dark:border-dark-txt hover:text-light-txt2 dark:hover:text-dark-txt2 hover:border-light-txt2 dark:hover:border-dark-txt2'}`}
           onClick={() => setActiveTab("requests")}
         >
           Sent Requests
         </div>
       </div>
 
-      {/* content */}
-      {/* Groups tab */}
+      {/* ** Groups tab ** */}
       {
         activeTab == "groups" && (
-          <div className='w-full flex-1 px-2 flex flex-col overflow-y-auto scrollbar'> 
-            <button onClick={() => setIsModalActive(true)}
-              className='flex items-center justify-center gap-2 p-2 w-fit self-end border-b-2 mb-2 cursor-pointer border-transparent hover:text-secondary hover:border-secondary
-            '>
-              <Plus className='size-6' />
-              Create New Group
-            </button>
+          <div className='w-full flex-1 px-2 flex flex-col overflow-y-auto scrollbar'>
+            {/* create group button (opens modal) */}
+            <TertiaryButton
+              leftIcon={<Plus className='size-5 lg:size-6' />}
+              text="Create Group"
+              className='py-2 px-3 w-fit text-sm lg:text-[16px] my-2 self-end'
+              onClick={() => setIsModalActive(true)}
+            /> 
+            {/* lists */}
+            {/* member groups list */}
             <div className={`flex-col px-2 pb-2 ${view == "admin" ? 'hidden' : 'flex'}`}>
               <div className='flex items-center justify-between w-full mb-2'>
+                {/* title */}
                 <span className='text-lg font-outfit font-semibold' >Groups I'm member of</span>
-                <button className='px-1 text-sm cursor-pointer text-secondary hover:underline' 
-                  onClick={() => {
-                  view == "both" ? setView("member") : setView("both");
-                  }}
+                {/* view more/less button */}
+                <button 
+                  className='px-1 text-sm cursor-pointer text-primary hover:text-secondary hover:underline' 
+                  onClick={() => view == "both" ? setView("member") : setView("both")}
                 >
                   { view == "both" ? 'View More' : 'View Less' }
                 </button>
               </div>
               {
+                // display skeletons while loading groups
                 loading ? (
                   Array.from({ length: 3 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
                 ) : memberGroups.length == 0 ? ( 
+                  // empty member groups list
                   <div className='flex-1 py-10 flex flex-col items-center gap-2'> 
                     <Ghost className='size-6' />
                     No groups found 
                   </div> 
                 ) : 
-                  <ul>
-                    {
-                      view == "both" ? 
-                      memberGroups.slice(0,3).map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} isSelected={selectedGroup?.groupID === group.groupID}/>) :
-                      memberGroups.map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} isSelected={selectedGroup?.groupID === group.groupID}/>) 
-                    }
-                    {
-                      loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
-                    }
-                    {
-                      view == "member" && <div ref={memberLoaderRef}></div>
-                    }
-                  </ul>
+                <ul>
+                  {
+                    // display only 4, whole list if expanded
+                    view == "both" ? 
+                    memberGroups.slice(0,3).map(group => <GroupPreview key={group.groupID} group={group} onSelect={selectGroup} isSelected={selectedGroup?.groupID === group.groupID}/>) :
+                    memberGroups.map(group => <GroupPreview key={group.groupID} group={group} onSelect={selectGroup} isSelected={selectedGroup?.groupID === group.groupID}/>) 
+                  }
+                  {
+                    // display skeletons while loading more member groups
+                    loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
+                  }
+                  {
+                    // sentinal div for loading more member groups
+                    view == "member" && <div ref={memberLoaderRef}></div>
+                  }
+                </ul>
               }
             </div>
 
+            {/* admin groups list */}
             <div className={`flex-col px-2 pb-2 ${view == "member" ? 'hidden' : 'flex'}`}>
               <div className='flex items-center justify-between w-full mb-2'>
+                {/* title */}
                 <span className='text-lg font-outfit font-semibold' >Groups I'm admin of</span>
-                <button className='px-1 text-sm cursor-pointer text-secondary hover:underline' 
-                  onClick={() => {
-                  view == "both" ? setView("admin") : setView("both");
-                  }}
+                {/* view more/less button */}
+                <button 
+                  className='px-1 text-sm cursor-pointer text-primary hover:text-secondary hover:underline' 
+                  onClick={() => view == "both" ? setView("admin") : setView("both")}
                 >
                   { view == "both" ? 'View More' : 'View Less' }
                 </button>
               </div>
               {
+                // display skeletons while loading groups
                 loading ? (
                   Array.from({ length: 3 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
                 ) : adminGroups.length == 0 ? ( 
+                  // empty admin groups list
                   <div className='flex-1 py-10 flex flex-col items-center gap-2'> 
                     <Ghost className='size-6' />
                     No groups found 
                   </div> 
                 ) : 
-                  <ul>
-                    {
-                      view == "both" ? 
-                      adminGroups.slice(0,3).map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} isSelected={selectedGroup?.groupID === group.groupID}/>) :
-                      adminGroups.map(group => <GroupPreview key={group.groupID} group={group} onClick={selectGroup} isSelected={selectedGroup?.groupID === group.groupID}/>) 
-                    }
-                    {
-                      loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
-                    }
-                    {
-                      view == "admin" && <div ref={adminLoaderRef}></div>
-                    }
-                  </ul>
+                <ul>
+                  {
+                    // display only 4, or whole list if expanded
+                    view == "both" ? 
+                    adminGroups.slice(0,3).map(group => <GroupPreview key={group.groupID} group={group} onSelect={selectGroup} isSelected={selectedGroup?.groupID === group.groupID}/>) :
+                    adminGroups.map(group => <GroupPreview key={group.groupID} group={group} onSelect={selectGroup} isSelected={selectedGroup?.groupID === group.groupID}/>) 
+                  }
+                  {
+                    // display skeletons while loading more admin groups
+                    loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
+                  }
+                  {
+                    //  sentinal div for loading more admin groups
+                    view == "admin" && <div ref={adminLoaderRef}></div>
+                  }
+                </ul>
               }
             </div>
           </div>
         )
       }
+
+      {/* ** sent requests tab ** */}
       {
         activeTab == "requests" && (
           <div className='w-full flex-1 px-2 overflow-y-auto scrollbar'>
             {
+              // display skeletons while laoding requests
               loading ? (
-                  Array.from({ length: 7 }).map((_, i) => <RequestPreviewSkeleton key={i} isSent={true} />)
-                ) : requests.length == 0 ? ( 
-                  <div className='flex-1 py-10 flex flex-col items-center gap-2'> 
-                    <Ghost className='size-6' />
-                    No pending requests 
-                  </div> 
-                ) : 
-                  <ul>
-                    {
-                      requests.map(req => <SentJoinRequestPreview key={req.groupID} request={req} onClick={selectGroup} onCancel={onCancelRequest} isSelected={selectedGroup?.groupID === req.groupID} />)
-                    }
-                    {
-                      loadingMore && Array.from({ length: 2 }).map((_, i) => <RequestPreviewSkeleton key={i} isSent={true} />)
-                    }
-                    {
-                      <div ref={requestLoaderRef}></div>
-                    }
-                  </ul>
+                Array.from({ length: 7 }).map((_, i) => <RequestPreviewSkeleton key={i} isSent={true} />)
+              ) : requests.length == 0 ? ( 
+                // empty requests list
+                <div className='flex-1 py-10 flex flex-col items-center gap-2'> 
+                  <Ghost className='size-6' />
+                  No pending requests 
+                </div> 
+              ) : 
+              <ul>
+                {
+                  // display sent requests
+                  requests.map(req => <SentJoinRequestPreview key={req.groupID} request={req} onSelect={selectGroup} onCancel={onCancelRequest} isSelected={selectedGroup?.groupID === req.groupID} />)
+                }
+                {
+                  // display skeletons while loading more requests
+                  loadingMore && Array.from({ length: 2 }).map((_, i) => <RequestPreviewSkeleton key={i} isSent={true} />)
+                }
+                {
+                  //  sentinal div for loading more requests
+                  <div ref={requestLoaderRef}></div>
+                }
+              </ul>
             }
           </div>
         )
@@ -183,6 +239,19 @@ const Aside = ({
   )
 }
 
+/* 
+ * Main component
+ * Main panel that displays the group profile .
+ * If nothing is selected, shows a placeholder illustration + message.
+ * Displays MobileHeader with the title group when main is open with a go back to aside button (only on mobile) 
+
+ * params:
+ * - group, setGroup, friendMembers: group profile display, passed down as props (GroupProfile)
+ * - members, setMembers, loadMoreMembers, loadingMoreMembers: group members list, passed down as props (GroupProfile)
+ * - joinRequests, setRequests, loadMoreRequests, loadingMoreRequests: group received join requests list, passed down as props (GroupProfile)
+ * - loading: loading profile state, passed down to GroupProfile
+ * - updateAdminGroups, updateMemberGroups, updateSentRequests: update lists in aside passed down as props
+*/
 const Main = ({
   group, setGroup, loading, friendMembers,
   members, setMembers, loadMoreMembers, loadingMoreMembers,
@@ -190,9 +259,11 @@ const Main = ({
   updateAdminGroups, updateMemberGroups, updateSentRequests 
 }) => {
   return (
-    <div className='h-screen w-full overflow-y-auto scrollbar'>
+    <div className='h-screen w-full overflow-y-auto scrollbar bg-light-100 dark:bg-dark-100'>
+      {/* mobile header */}
       <MobileHeader title="Group" />
       {
+        // display group if selected
         group ? (
           <GroupProfile 
             group={group} 
@@ -212,6 +283,7 @@ const Main = ({
             updateRequestList={updateSentRequests}
           />
         ) : (
+          // display placeholder if not
           <div className='w-full h-screen flex flex-col items-center justify-center gap-2'>
             <img src="/assets/profile-interface.svg" className='w-[45%]' />
             <span className='text-xl font-outfit text-light-txt dark:text-dark-txt'> Select a group to view their profile!</span>
@@ -222,57 +294,79 @@ const Main = ({
   )
 }
 
+/* 
+ * Groups Page
+ * used to check my groups (member/admin) and sent join requests 
+ * consists of an aside with two tabs and a main for displaying the group profiles
+
+ * Integrates with API functions:
+ * - `getAdminGroups`, `getFriendMembers`, `getGroupDetails`, `getJoinRequests`, `getMemberGroups`, `getMembers`, `getSentJoinRequests`
+*/
 function GroupsPage() {
   const { setMainActive } = useLayoutStore();
 
-  const [activeTab, setActiveTab] = useState("groups");
-  const [view, setView] = useState("both");
+  /* -------- aside states -------- */
+  const [activeTab, setActiveTab] = useState("groups"); // active tab control state: "groups" || "requests"
+  const [view, setView] = useState("both"); // active view more control state: "both" || "member" || "admin"
 
+  // create group modal visibility
   const [isModalActive, setIsModalActive] = useState(false); 
 
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [loading, setLoading] = useState(false); // initial loading state
+  const [loadingMore, setLoadingMore] = useState(false); // loading more state
 
+  // member groups list states (pagination)
   const [memberGroups, setMemberGroups] = useState([]);
-  const [adminGroups, setAdminGroups] = useState([]);
-  const [requests, setRequests] = useState([]);
-
   const [memberPage, setMemberPage] = useState(1);
-  const [adminPage, setAdminPage] = useState(1);
-  const [requestPage, setRequestPage] = useState(1);
   const [hasMoreMember, setHasMoreMember] = useState(false);
+  
+  // admin groups list states (pagination)
+  const [adminGroups, setAdminGroups] = useState([]);
+  const [adminPage, setAdminPage] = useState(1);
   const [hasMoreAdmin, setHasMoreAdmin] = useState(false);
+  
+  // sent join requests list states (pagination)
+  const [requests, setRequests] = useState([]);
+  const [requestPage, setRequestPage] = useState(1);
   const [hasMoreRequests, setHasMoreRequests] = useState(false);
 
-  const limit = 10;
+  const limit = 10; // items per page
 
-
-  const [loadingProfile, setLoadingProfile] = useState(false);
-
-  const [selectedGroup, setSelectedGroup] = useState(null);
-  const [friendMembers, setFriendMembers] = useState([]);
+  /* -------- main states -------- */
+  const [loadingProfile, setLoadingProfile] = useState(false); // laoding profile state
+  const [selectedGroup, setSelectedGroup] = useState(null); // currently selected group 
+  const [friendMembers, setFriendMembers] = useState([]); // list of members that are friends of auth user
+  
+  // group members list (pagination)
   const [members, setMembers] = useState([]);
-  const [joinRequests, setJoinRequests] = useState([]);
-
   const [membersPage, setMembersPage] = useState(1);
-  const [joinRequestsPage, setJoinRequestsPage] = useState(1);
   const [hasMoreMembers, setHasMoreMembers] = useState(false);
-  const [hasMoreJoinRequests, setHasMoreJoinRequests] = useState(false);
   const [loadingMoreMembers, setLoadingMoreMembers] = useState(false);
+  
+  // group received join requests list (pagination)
+  const [joinRequests, setJoinRequests] = useState([]);
+  const [joinRequestsPage, setJoinRequestsPage] = useState(1);
+  const [hasMoreJoinRequests, setHasMoreJoinRequests] = useState(false);
   const [loadingMoreJoinRequests, setLoadingMoreJoinRequests] = useState(false);
   
 
+  /* -------- aside data fetching -------- */
+
+  // get groups or requests from backend 
   const fetchData = async (reset = false) => {
     try {
       let memberRes, adminRes, requestRes;
 
+      // get groups if active tab is groups
       if(activeTab == "groups") {
         if(reset) {
+          // get both member groups and admin groups (on parallel) if resseting 
           [ memberRes, adminRes ] = await Promise.all([
             getMemberGroups(reset, memberPage, limit),
             getAdminGroups(reset, adminPage, limit)
           ]);
         } else {
+          // get groups based on open view
           if(view == "member" && hasMoreMember) {
             memberRes = await getMemberGroups(reset, memberPage, limit);
           } else if (view == "admin" && hasMoreAdmin) {
@@ -280,11 +374,13 @@ function GroupsPage() {
           }
         }
       } else if (activeTab == "requests") {
+        // get sent join requests if active tab is requests
         if(reset || hasMoreRequests) {
           requestRes = await getSentJoinRequests(reset, requestPage, limit);
         }
       }
       
+      // handle member groups result
       if(memberRes?.groups) {
         const newGroups = memberRes.groups;
         const totalPages = memberRes.totalPages
@@ -294,6 +390,7 @@ function GroupsPage() {
         setMemberPage(reset ? 2 : memberPage + 1);
       }
 
+      // handle admin groups result
       if(adminRes?.groups) {
         const newGroups = adminRes.groups;
         const totalPages = adminRes.totalPages
@@ -303,6 +400,7 @@ function GroupsPage() {
         setAdminPage(reset ? 2 : adminPage + 1);
       }
 
+      // handle requests result
       if(requestRes?.requests) {
         const newRequests = requestRes.requests;
         const totalPages = requestRes.totalPages;
@@ -323,11 +421,13 @@ function GroupsPage() {
     }
   }
 
+  // initial load of data
   useEffect(() => {
     setLoading(true);
     fetchData(true);
   },[activeTab]);
 
+  // load more data
   const loadMore = async () => {
     if(!loading && !loadingMore) {
       setLoadingMore(true);
@@ -335,11 +435,15 @@ function GroupsPage() {
     }
   }
 
+  /* -------- main content fetching -------- */
+
+  // handle display group profile
   const selectGroup = async (groupID) => {
     setLoadingProfile(true);
-    setSelectedGroup(groupID);
-    setMainActive(true); 
+    setSelectedGroup(groupID); // temporarily store group ID
+    setMainActive(true); // open main panel on mobile
     try {
+      // get group details, friend members, group members and received join requests on parallel
       const [res, mut, mem, req] = await Promise.all([
         getGroupDetails(groupID),
         getFriendMembers(groupID),
@@ -347,6 +451,7 @@ function GroupsPage() {
         getJoinRequests(groupID, true, joinRequestsPage, limit),
       ]);
       
+      // handle members response
       if(mem?.members) {
         const totalPages = mem.totalPages;
 
@@ -355,6 +460,7 @@ function GroupsPage() {
         setMembersPage(2);
       }
 
+      // handle received requests response
       if(req?.requests) {
         const totalPages = req.totalPages;
 
@@ -363,13 +469,16 @@ function GroupsPage() {
         setJoinRequestsPage(2);
       }
 
+      // handle friend members response
       if(mut?.members) {
         setFriendMembers(mut.members);
       }
 
+      // handle group details response
       if(res) {
-        setSelectedGroup(res);
+        setSelectedGroup(res); // replace with full details
       } else {
+        // reset if group not found
         setSelectedGroup(null);
         setMainActive(false)
       }
@@ -380,40 +489,58 @@ function GroupsPage() {
     }
   }
 
+  // load more members of the group
   const loadMoreMembers = async (groupID) => {
-    if(loadingMoreMembers || !hasMoreMembers) return;
+    if(loadingMoreMembers || !hasMoreMembers) return; // exit early if there are no more members
     setLoadingMoreMembers(true);
-    const res = await getMembers(groupID, false, membersPage, limit);
+    try {
+      const res = await getMembers(groupID, false, membersPage, limit);
 
-    if(res?.members) {
-      const newMembers = res.members;
-      const totalPages = res.totalPages
+      if(res?.members) {
+        const newMembers = res.members;
+        const totalPages = res.totalPages
 
-      setMembers(prev => [...prev, ...newMembers]);
-      setHasMoreMembers(membersPage < totalPages);
-      setMembersPage(membersPage + 1);
+        setMembers(prev => [...prev, ...newMembers]);
+        setHasMoreMembers(membersPage < totalPages);
+        setMembersPage(membersPage + 1);
+      } 
+    } catch (error) {
+      console.log("error getting more members", error);
+    } finally {
+      setLoadingMoreMembers(false);
     }
-
-    setLoadingMoreMembers(false);
   }
 
+  // load more received join requests
   const loadMoreJoinRequests = async (groupID) => {
-    if(loadingMoreJoinRequests || !hasMoreJoinRequests) return;
+    if(loadingMoreJoinRequests || !hasMoreJoinRequests) return; // exit early if there are no more requests
     setLoadingMoreJoinRequests(true);
-    const res = await getJoinRequests(groupID, false, joinRequestsPage, limit);
+    try {
+      const res = await getJoinRequests(groupID, false, joinRequestsPage, limit);
 
-    if(res?.requests) {
-      const newRequests = res.requests;
-      const totalPages = res.totalPages
+      if(res?.requests) {
+        const newRequests = res.requests;
+        const totalPages = res.totalPages
 
-      setJoinRequests(prev => [...prev, ...newRequests]);
-      setHasMoreJoinRequests(joinRequestsPage < totalPages);
-      setJoinRequestsPage(joinRequestsPage + 1);
+        setJoinRequests(prev => [...prev, ...newRequests]);
+        setHasMoreJoinRequests(joinRequestsPage < totalPages);
+        setJoinRequestsPage(joinRequestsPage + 1);
+      } 
+    } catch (error) {
+      console.log("error loading more receied join requests ", error);
+    } finally {
+      setLoadingMoreJoinRequests(false);
     }
-
-    setLoadingMoreJoinRequests(false);
   }
 
+  // update groups list after creating a new group
+  const onCreateGroup = (group) => {
+    const groups = [...adminGroups]
+    groups.push(group);
+    setAdminGroups(groups) 
+  }
+
+  // layout rendering
   return (
     <>
       <ResponsiveLayout 
@@ -457,7 +584,7 @@ function GroupsPage() {
           />
         }
       />
-      {isModalActive && <CreateGroupModal onClose={() => setIsModalActive(false)} />}
+      {isModalActive && <CreateGroupModal onClose={() => setIsModalActive(false)} onCreate={onCreateGroup} />}
     </>
   )
 }

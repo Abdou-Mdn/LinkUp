@@ -1,6 +1,10 @@
 import React from 'react'
 import ProfilePreviewSkeleton from './ProfilePreviewSkeleton'
 
+/* 
+ * ProfileSkeleton
+ * Displays a skeleton while profile is loading
+*/
 const ProfileSkeleton = () => {
   return (
     <div className='size-full bg-light-100 dark:bg-dark-100'>
@@ -9,7 +13,7 @@ const ProfileSkeleton = () => {
           {/* cover image */}
           <div className='w-full h-[200px] animate-pulse bg-light-300 dark:bg-dark-300'></div> 
           {/* profile picture */}
-          <div className='size-[150px] rounded-[50%] absolute left-8 bottom-0 border-4 animate-pulse bg-light-300 dark:bg-dark-300 border-light-100 dark:border-dark-100' />
+          <div className='size-[150px] rounded-full absolute left-8 bottom-0 border-4 animate-pulse bg-light-300 dark:bg-dark-300 border-light-100 dark:border-dark-100' />
         </div>
         {/* main infos */}
         <div className='w-full p-3 mb-2 lg:pl-10 relative'>
@@ -45,6 +49,7 @@ const ProfileSkeleton = () => {
             </div>
             <div className='w-[120px] h-6 rounded-2xl my-2 animate-pulse bg-light-300 dark:bg-dark-300'></div>
           </div>
+          {/* mutual friends / members list */}
           <div className='w-full pl-3 lg:pl-8 lg:w-1/2'>
             <div className='flex gap-2 items-center justify-between py-2 px-4'>
               <div className='w-[150px] h-6 rounded-2xl animate-pulse bg-light-300 dark:bg-dark-300'></div>

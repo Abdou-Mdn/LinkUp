@@ -50,15 +50,6 @@ const getUserDetails = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        const friendIDs = user.friends.map(f => f.user);
-
-        const friends = await User.find({
-            userID: { $in: friendIDs },
-            isDeleted: { $ne: true }
-        }).select("userID");
-
-        user.friends = friends;
-
         res.json(user);
     } catch (error) {
         console.error("Error in get user details controller:", error.message);
@@ -381,9 +372,25 @@ const deleteAccount = async (req, res) => {
             return res.status(400).json({ message: "Incorrect password" })
         }
 
+        // 1. Remove this user from all their friends' lists
+        await User.updateMany(
+            { "friends.user": userID },
+            { $pull: { friends: { user: userID } } }
+        );
+
+        // 2. Remove this user from all the groups
+        await Group.updateMany(
+            {"members.user" : userID},
+            { $pull: { members: { user: userID }}}
+        )
+
+        // 3. Clear this user's friends list
+        user.friends = [];
+
+        // 4. Soft-delete user data
         user.name = "Deleted Account";
         user.profilePic = "";
-        user.isDeleted = true; 
+        user.isDeleted = true;
 
         await user.save();
 
