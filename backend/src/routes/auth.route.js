@@ -1,7 +1,10 @@
 const express = require("express");
 const router = express.Router();
 
-const { signup, login, logout, checkAuth, verifyEmail, sendCode, verifyCode, resetPassword } = require("../controllers/auth.controller");
+const { 
+    signup, login, logout, checkAuth, 
+    verifyEmail, sendCode, verifyCode, resetPassword 
+} = require("../controllers/auth.controller");
 const authMiddleware = require("../middleware/auth.middleware");
 
 // route is /api/auth

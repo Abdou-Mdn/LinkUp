@@ -89,7 +89,10 @@ const Aside = ({
       setUser(profile);
     }
     updateFriendRequests(prev => prev.filter(r => r.userID !== profile.userID));
-    updateFriends(prev => [...prev, profile]);
+    updateFriends(prev => {
+      const newFriends = [...prev, profile]
+      return newFriends.sort((a, b) => a.name.localeCompare(b.name));
+    });
   }
 
   // update lists after declining received request
@@ -341,8 +344,10 @@ function FriendsPage() {
 
   // get friends from backend
   const fetchFriends = async (reset) => {
-    if(!reset && !hasMoreFriends) return; // exit early if there are no more friends
-    
+    if(!reset && !hasMoreFriends) {
+      setLoadingMore(false)
+      return; // exit early if there are no more friends
+    } 
     try {
       const result = await getFriends(reset, friendsPage, limit);
 
@@ -368,7 +373,10 @@ function FriendsPage() {
 
   // get received friend requests from backend
   const fetchFriendRequests = async (reset) => {
-    if(!reset && !hasMoreFriendRequests) return; // exit early if there are no more requests
+    if(!reset && !hasMoreFriendRequests) {
+      setLoadingMore(false)
+      return; // exit early if there are no more friend requests
+    } 
 
     try {
       const result = await getFriendRequests(reset, friendRequestsPage, limit);
@@ -395,7 +403,10 @@ function FriendsPage() {
 
   // get sent friend requests from backend
   const fetchSentRequests = async (reset) => {
-    if(!reset && !hasMoreSentRequests) return; // exit early if there no more requests
+    if(!reset && !hasMoreSentRequests) {
+      setLoadingMore(false)
+      return; // exit early if there are no more sent requests
+    } 
 
     try {
       const result = await getSentFriendRequests(reset, sentRequestsPage, limit);

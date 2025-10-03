@@ -128,10 +128,10 @@ const ProfileButtons = ({user, onAdd, onCancel, onAccept, onDecline, onUnfriend}
                 if(!selectedChat?.isGroup && selectedChat?.participants?.some(u => u.userID === user.userID)) {
                     resetChat();
                 }
+                setUnfriendModel(false); // close modal
             }   
         } catch (error) {
-            setUnfriendModel(false); // close modal
-            setLoading(false);   
+           setLoading(false);   
         }
     }
 

@@ -1,37 +1,54 @@
+const bcrypt = require("bcrypt");
+const mongoose = require("mongoose");
 const User = require("../models/user.model");
 const Group = require("../models/group.model");
 const Chat = require("../models/chat.model");
 const Message = require("../models/message.model");
 const cloudinary = require("../lib/cloudinary");
-const bcrypt = require("bcrypt");
+const { relevanceSearchPipeline } = require("../lib/queries");
+
 
 /* ********* getting details ********* */
 
+// fetch users based on provided name
 const getUsers = async (req, res) => {
     try {
         const name = req.query.name || "";
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
 
-        // creating filter to get the users with names that include the provided name 
+        // search filter (case-insensitive partial match on group name) 
         const filter = {
             name: { $regex: name, $options: 'i'}, // case insensitive search
             isDeleted: { $ne: true } // user shouldn't be deleted
         };
 
-        const total = await User.countDocuments(filter) // getting the total number of users 
+        const projection = {
+            userID: 1,
+            name: 1,
+            profilePic: 1,
+            bio: 1,
+            friends: 1,
+            lastSeen: 1,
+            createdAt: 1
+        }
 
-        // getting the users
-        const users = await User.find(filter) // applying the filter
-            .skip((page - 1) * limit) // getting the requested page
-            .limit(limit) // getting only the number requested
-            .select("userID name bio profilePic lastSeen createdAt friends"); // selecting the necessary fields only
+        // parallel queries for optimization
+        const [total, users] = await Promise.all([
+            // count total number of users that match the filter
+            User.countDocuments(filter),
 
+            User.aggregate([
+                { $match: filter },
+                ...relevanceSearchPipeline(name, projection),
+                { $skip: (page - 1) * limit },
+                { $limit: limit }
+            ])
+        ])
+
+        // return paginated response
         res.json({
-            page,
-            limit,
             totalPages: Math.ceil(total / limit),
-            totalResults: total,
             users
         });
     } catch (error) {
@@ -40,6 +57,7 @@ const getUsers = async (req, res) => {
     }
 }
 
+// fetch details of a specefic user
 const getUserDetails = async (req, res) => {
     try {
         const userID = parseInt(req.params.userID);
@@ -57,53 +75,49 @@ const getUserDetails = async (req, res) => {
     }
 }
 
-/* ********** managing friends **********  */
-
+// get list of user's friends (paginated)
 const getFriends = async (req, res) => {
     try {
         const userID = req.user.userID
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
 
-        // Find the user to get their friends list
-        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("friends");
+        // validate user existence
+        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("friends").lean();
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
         // get all the friends ids
-        const requestIDs = user.friends.map(f => f.user);
+        const friendIDs = user.friends.map(f => f.user);
         
-        if (requestIDs.length === 0) {
-            // if user has no friends we return an empty array 
+        // if user has no friends we return an empty array 
+        if (friendIDs.length === 0) {
             return res.json({
-                page,
-                limit,
                 totalPages: 0,
-                totalResults: 0,
                 friends: []
             });
         }
 
         // Build the filter for the friends list
         const filter = {
-            userID: { $in: requestIDs },
+            userID: { $in: friendIDs },
             isDeleted: { $ne: true }
         };
 
-        const total = await User.countDocuments(filter);
+        const [total, friends] = await Promise.all([
+            User.countDocuments(filter),
 
-        const friends = await User.find(filter)
-            .select("userID name profilePic lastSeen friends")
+            User.find(filter)
             .sort({ name: 1 }) // sorting the results alphabetically 
             .skip((page - 1) * limit)
-            .limit(limit);
+            .limit(limit)
+            .select("userID name profilePic lastSeen friends")
+            .lean()
+        ]);
 
         return res.json({
-            page,
-            limit,
             totalPages: Math.ceil(total / limit),
-            totalResults: total,
             friends
         });
 
@@ -113,6 +127,7 @@ const getFriends = async (req, res) => {
     }
 };
 
+// get list of mutual friends between authenticated user and a specefic user
 const getMutualFriends = async (req, res) => {
     try {
         const currentUserID = req.user.userID;
@@ -122,31 +137,33 @@ const getMutualFriends = async (req, res) => {
             return res.status(400).json({ message: "Cannot get mutual friends with yourself" });
         }
 
-        // we select the friends array of the current and other user
-        const currentUser = await User.findOne({userID: currentUserID, isDeleted: { $ne: true }})
-            .select("friends");
-        const otherUser = await User.findOne({userID: otherUserID, isDeleted: { $ne: true }})
-            .select("friends");
+        // get data from db 
+        const [currentUser, otherUser] = await Promise.all([
+            User.findOne({userID: currentUserID, isDeleted: { $ne: true }}).select("friends").lean(),
+            User.findOne({userID: otherUserID, isDeleted: { $ne: true }}).select("friends").lean()
+        ])
 
+        // validate existence
         if (!currentUser || !otherUser) {
             return res.status(404).json({ message: "One or both users not found" });
         }
 
-        // we get the friend ids of the current user and the other user
+        // get friend IDs of each user's friends
         const currentUserFriends = currentUser.friends.map(f => f.user);
         const otherUserFriends = otherUser.friends.map(f => f.user);
 
-        // we look for the intersection between the two arrays
+        // get intersection of the two arrays
         const mutualIDs = currentUserFriends.filter(id => otherUserFriends.includes(id));
 
-        // if users have no mutual friends we return an empty array
+        // if no mutual friends return an empt array
         if (mutualIDs.length === 0) {
             return res.json({ mutualFriends: [] });
         }
 
-        // we search all the users that are mutual friends of the current and other user
+        // get user infos
         const mutualFriends = await User.find({userID: { $in: mutualIDs }, isDeleted: { $ne: true }})
-            .select("userID name profilePic lastSeen");
+            .select("userID name profilePic lastSeen")
+            .lean();
 
         res.json({ mutualFriends });
 
@@ -156,80 +173,222 @@ const getMutualFriends = async (req, res) => {
     }
 }
 
-
-const removeFriend = async (req, res) => {
+// get list of received friend requests (paginated)
+const getPendingFriendRequests = async (req, res) => {
     try {
-        const userID = req.user.userID;
-        const friendID = parseInt(req.params.userID);
+        const userID = req.user.userID
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
 
-        if (userID === friendID) {
-            return res.status(400).json({ message: "You cannot unfriend yourself." });
+        // validate existence
+        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("friendRequests").lean();
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
         }
 
-        const user = await User.findOne({userID, isDeleted: { $ne: true }});
-        const friend = await User.findOne({userID: friendID, isDeleted: { $ne: true }});
+        // sort requesters based on requested date (newest to oldest) 
+        const sortedRequests = user.friendRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
 
-        if (!user || !friend) {
-            return res.status(404).json({ message: "User not found." });
+        // apply manual pagination
+        const total = sortedRequests.length;
+        const startIndex = (page - 1) * limit;
+        const paginatedRequests = sortedRequests.slice(startIndex, startIndex + limit);
+
+        // return empty response if list is empty
+        if (paginatedRequests.length === 0) {
+            return res.json({
+                totalPages: 0,
+                requests: []
+            });
         }
 
-        // remove friend from user's friends list
-        user.friends = user.friends.filter(f => f.user !== friendID);
+        // get all the requester IDs
+        const requestIDs = paginatedRequests.map(f => f.user);
 
-        // remove user from friend's friends list
-        friend.friends = friend.friends.filter(f => f.user !== userID);
+        // fetch user details for requesters 
+        const requesters = await User.find({userID: { $in: requestIDs }, isDeleted: { $ne: true }})
+            .select("userID name profilePic")
+            .lean();
 
-        await user.save();
-        await friend.save();
-
-        const chat = await Chat.findOneAndDelete({
-            isGroup: false,
-            participants: { $all: [userID, friendID] }
+        // map back requestedAt values to requesters
+        const requestedAtMap = new Map();
+        paginatedRequests.forEach(req => {
+            requestedAtMap.set(req.user, req.requestedAt);
         });
 
-        // delete all messages referencing the deleted chat
-        if (chat) {
-            await Message.deleteMany({ chat: chat.chatID });
-        }
-
-        const { password: pw1, ...userWithoutPassword } = user.toObject();
-        const { password: pw2, ...profileWithoutPassword } = friend.toObject();
-
-        res.status(200).json({ 
-            message: "Friend removed successfully.", 
-            user: userWithoutPassword, 
-            profile: profileWithoutPassword 
+        const requests = requesters.map(u => ({
+            ...u,
+            requestedAt: requestedAtMap.get(u.userID)
+        }));
+        
+        // return paginated response
+        return res.json({
+            totalPages: Math.ceil(total / limit),
+            requests
         });
 
     } catch (error) {
-        console.error("Error in remove friend controller:", error.message);
+        console.error("Error in get friend requests controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
     }
-};
+}
+
+// get list of sent friend requests (paginated)
+const getSentFriendRequests = async (req, res) => {
+    try {
+        const userID = req.user.userID
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+
+        // validate existence
+        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("sentFriendRequests").lean();
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // sort requesters based on requested date (newest to oldest) 
+        const sortedRequests = user.sentFriendRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
+
+        // apply manual pagination
+        const total = sortedRequests.length;
+        const startIndex = (page - 1) * limit;
+        const paginatedRequests = sortedRequests.slice(startIndex, startIndex + limit);
+
+        // return empty response if list is empty
+        if (paginatedRequests.length === 0) {
+            return res.json({
+                totalPages: 0,
+                requests: []
+            });
+        }
+
+        // get all the requester IDs
+        const requestIDs = paginatedRequests.map(f => f.user);
+        
+
+       // fetch user details for requesters 
+        const requesters = await User.find({userID: { $in: requestIDs }, isDeleted: { $ne: true }})
+            .select("userID name profilePic")
+            .lean();
+
+        // map back requestedAt values to requesters
+        const requestedAtMap = new Map();
+        paginatedRequests.forEach(req => {
+            requestedAtMap.set(req.user, req.requestedAt);
+        });
+
+        const requests = requesters.map(u => ({
+            ...u,
+            requestedAt: requestedAtMap.get(u.userID)
+        }));
+        
+        // return paginated response
+        return res.json({
+            totalPages: Math.ceil(total / limit),
+            requests
+        });
+
+    } catch (error) {
+        console.error("Error in get sent friend requests controller:", error.message);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+// get list of sent join requests (paginated)
+const getSentJoinRequests = async (req, res) => {
+    try {
+        const userID = req.user.userID
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+
+        // validate existence
+        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("sentJoinRequests").lean();
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // sort requesters based on requested date (newest to oldest) 
+        const sortedRequests = user.sentJoinRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
+
+        // apply manual pagination
+        const total = sortedRequests.length;
+        const startIndex = (page - 1) * limit;
+        const paginatedRequests = sortedRequests.slice(startIndex, startIndex + limit);
+
+        // return empty response if list is empty
+        if (paginatedRequests.length === 0) {
+            return res.json({
+                totalPages: 0,
+                requests: []
+            });
+        }
+
+        // get all the group IDs
+        const requestIDs = paginatedRequests.map(f => f.group);
+
+        // we find all the groups that are in the sent join requests array
+        const groups = await Group.find({groupID: { $in: requestIDs }})
+            .select("groupID name image")
+            .lean();
+
+        // map back requestedAt values to groups
+        const requestedAtMap = new Map();
+        paginatedRequests.forEach(req => {
+            requestedAtMap.set(req.group, req.requestedAt);
+        });
+
+        const requests = requestIDs.map(id => {
+            const group = groups.find(g => g.groupID === id);
+            if (!group) return null;
+            return {
+                ...group,
+                requestedAt: requestedAtMap.get(group.groupID)
+            };
+        }).filter(Boolean);
+        
+        return res.json({
+            totalPages: Math.ceil(total / limit),
+            requests
+        });
+
+    } catch (error) {
+        console.error("Error in get sent join request controller:", error.message);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
 
  /* ********* managing profile ********* */ 
 
+// edit profile informations
 const updateProfile = async (req, res) => {
     try {
         const userID = req.user.userID;
         const { name, bio, profilePic, cover, birthdate, socials } = req.body;
         
+        // validate existence
         const user = await User.findOne({userID, isDeleted: { $ne: true }});
-
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // updating the fields if provided
-        if(name) user.name = name;
-        if(bio != undefined) {
+        // handle update name
+        if(name && name != user.name) user.name = name;
+        
+        // handle update bio
+        if(bio != undefined && bio != user.bio) {
             if (bio.length > 150) {
                 return res.status(400).json({ message: "Bio must be 150 characters or fewer" });
             }
             user.bio = bio;
         } 
-        if(birthdate) user.birthdate = birthdate;
-        if(socials) user.socials = socials;
+
+        // handle update birthdate
+        if(birthdate && birthdate != user.birthdate) user.birthdate = birthdate;
+        
+        // handle update socials
+        if(socials && socials != user.socials) user.socials = socials;
+        
+        // handle update profile picture
         if(profilePic) {
             // uploading the pic to cloudinary first
             console.log("uploading profile pic to cloudinary");
@@ -240,6 +399,7 @@ const updateProfile = async (req, res) => {
             user.profilePic = uploadResponse.secure_url;
         }
 
+        // handle update cover image
         if(cover) {
             // uploading the pic to cloudinary first
             console.log("uploading cover to cloudinary");
@@ -250,9 +410,10 @@ const updateProfile = async (req, res) => {
             user.cover = uploadResponse.secure_url;
         }
 
-
+        // save changes to db
         await user.save();
-        // excluding the password from the response
+
+        // exclude password from response
         const { password, ...userWithoutPassword } = user.toObject();
 
         res.json({ message: "Profile updated successfully", user: userWithoutPassword }); 
@@ -262,29 +423,30 @@ const updateProfile = async (req, res) => {
     }
 }
 
+// update account email
 const updateEmail = async (req, res) => {
     try {
         const userID = req.user.userID;
         const { email, password } = req.body;
         
+        // validate input values
         if (!email || !password) {
             return res.status(400).json({ message: "All fields must be filled" })
         }
 
+        // validate user existence
         const user = await User.findOne({userID, isDeleted: { $ne: true }});
-
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        const existingUser = await User.findOne({email, isDeleted: { $ne: true }});
-
-        // check if email is already registered
+        // ensure email is not already registered
+        const existingUser = await User.findOne({email, isDeleted: { $ne: true }}).select("userID").lean();
         if (existingUser && existingUser.userID !== userID) {
             return res.status(400).json({ message: "Email is already in use" });
         }
 
-        // check if password is correct
+        // validate password
         const isValidPassword = await bcrypt.compare(password, user.password)
         if (!isValidPassword) {
             return res.status(400).json({ message: "Incorrect password" })
@@ -293,7 +455,8 @@ const updateEmail = async (req, res) => {
         // update email
         user.email = email; 
         await user.save();
-        // excluding the password from the response
+
+        // exclude password from response
         const { password: pass, ...userWithoutPassword } = user.toObject();
 
         res.json({ message: "Email is updated successfully", user: userWithoutPassword }); 
@@ -304,43 +467,46 @@ const updateEmail = async (req, res) => {
     }
 }
 
+// update account password
 const updatePassword = async (req, res) => {
     try {
         const userID = req.user.userID;
         const { currentPassword, newPassword } = req.body;
         
+        // validate input values
         if (!currentPassword || !newPassword) {
             return res.status(400).json({ message: "Please provide both current password and new password" })
         }
 
+        // validate user existence
         const user = await User.findOne({userID, isDeleted: { $ne: true }});
-
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // checking if current password is correct
+        // validate password
         const isValidPassword = await bcrypt.compare(currentPassword, user.password)
         if (!isValidPassword) {
             return res.status(400).json({ message: "Current password is incorrect" })
         }
 
-        // checking if the new password is different from the current password
+        // ensure new password is different from current password
         const isSamePassword = await bcrypt.compare(newPassword, user.password);
         if (isSamePassword) {
             return res.status(400).json({ message: "New password must be different from the current password" });
         }
 
-        // new password should have more than 8 characters
+        // ensure new password has at least 8 characters
         if (newPassword.length < 8){
             return res.status(400).json({ message: "New password must be at least 8 characters long" });
         } 
         
-        // updating password
+        // hash and update password
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(newPassword, salt);
-
         await user.save();
+
+        // exclude password from response
         const { password, ...userWithoutPassword } = user.toObject();
 
         res.json({ message: "Password is updated successfully", user: userWithoutPassword }); 
@@ -351,447 +517,444 @@ const updatePassword = async (req, res) => {
     }
 }
 
+// remove user account
 const deleteAccount = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const userID = req.user.userID;
         const { password } = req.body;
 
+        // validate input values
         if (!password) {
+            await session.abortTransaction();
             return res.status(400).json({ message: "Please provide your password" })
         }
 
-        const user = await User.findOne({userID, isDeleted: { $ne: true }});
-
+        // validate user existence 
+        const user = await User.findOne({userID, isDeleted: { $ne: true }}).session(session).select("userID password").lean();
         if (!user) {
+            await session.abortTransaction();
             return res.status(404).json({ message: "User not found" });
         }
 
-        // check if password is correct
+        // validate password
         const isValidPassword = await bcrypt.compare(password, user.password)
         if (!isValidPassword) {
+            await session.abortTransaction();
             return res.status(400).json({ message: "Incorrect password" })
         }
 
-        // 1. Remove this user from all their friends' lists
-        await User.updateMany(
-            { "friends.user": userID },
-            { $pull: { friends: { user: userID } } }
-        );
+        // parallel updates
+        await Promise.all([
+            // soft delete
+            User.updateOne(
+                { userID },
+                {
+                    $set: {
+                        friends: [],
+                        sentFriendRequests: [],
+                        sentJoinRequests: [],
+                        name: "Deleted Account",
+                        profilePic: "",
+                        isDeleted: true
+                    }
+                },
+                { session }
+            ),
 
-        // 2. Remove this user from all the groups
-        await Group.updateMany(
-            {"members.user" : userID},
-            { $pull: { members: { user: userID }}}
-        )
+            // remove user from all their friends' lists
+            User.updateMany(
+                { 
+                    $or: [
+                        { "friends.user": userID }, // already friends
+                        { "friendRequests.user": userID }, // received friend request from userID
+                        { "sentFriendRequests.user": userID } // sent friend request to userID
+                    ] 
+                },
+                { 
+                    $pull: { 
+                        friends: { user: userID }, 
+                        friendRequests: { user: userID },
+                        sentFriendRequests: { user: userID }
+                    }
+                },
+                { session }
+            ),
 
-        // 3. Clear this user's friends list
-        user.friends = [];
+            // remove user from all groups' lists
+            Group.updateMany(
+                {
+                    $or: [
+                        { "members.user" : userID },
+                        { "joinRequests.user": userID }
+                    ]
+                },
+                { 
+                    $pull: { 
+                        members: { user: userID },
+                        joinRequests: { user: userID }
+                    }
+                },
+                { session }
+            )
+        ]);
 
-        // 4. Soft-delete user data
-        user.name = "Deleted Account";
-        user.profilePic = "";
-        user.isDeleted = true;
-
-        await user.save();
+        await session.commitTransaction();
 
         res.status(200).json({ message: "Account deleted successfully"});
 
     } catch (error) {
+        await session.abortTransaction();
         console.error("Error in delete account controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
+    } finally {
+        session.endSession();
     }
 }
 
- /* ********* managing requests ********* */
+ /* ********* managing friends & requests ********* */
 
-const getPendingFriendRequests = async (req, res) => {
+// remove a specefic user from friends
+const removeFriend = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
-        const userID = req.user.userID
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
+        const userID = req.user.userID;
+        const friendID = parseInt(req.params.userID);
 
-        // Find the user to get their friends list
-        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("friendRequests");
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
+        // get data from db
+        const [user, friend] = await Promise.all([
+            User.findOne({userID, isDeleted: { $ne: true }}).session(session).select("userID").lean(),
+            User.findOne({userID: friendID, isDeleted: { $ne: true }}).session(session).select("userID").lean(),
+        ])
+        
+        // validate users existence
+        if (!user || !friend) {
+            await session.abortTransaction();
+            return res.status(404).json({ message: "User not found." });
         }
 
-        // we sort the requests based on the time requested 
-        const sortedRequests = user.friendRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
+        const [updatedUser, updatedFriend] = await Promise.all([
+            // remove friend from user's friends
+            User.findOneAndUpdate(
+                { userID, isDeleted: { $ne: true }},
+                { $pull: { friends: { user: friendID }}},
+                { new: true, lean: true, session }
+            ).select("-password -_id -__v"),
 
-        const total = sortedRequests.length;
-        const startIndex = (page - 1) * limit;
-        const paginatedRequests = sortedRequests.slice(startIndex, startIndex + limit);
+            // remove user from friend's friends
+            User.findOneAndUpdate(
+                { userID: friendID, isDeleted: { $ne: true }},
+                { $pull: { friends: { user: userID }}},
+                { new: true, lean: true, session }
+            ).select("-password -_id -__v")
+        ]);
 
-        // get all the friends ids
-        const requestIDs = paginatedRequests.map(f => f.user);
-        
-        if (requestIDs.length === 0) {
-            // if user has no friends we return an empty array 
-            return res.json({
-                page,
-                limit,
-                totalPages: 0,
-                totalResults: 0,
-                requests: []
-            });
+        // find private chat and delete
+        const chat = Chat.findOneAndDelete({isGroup: false, participants: { $all: [userID, friendID] }})
+            .session(session)
+            .select("chatID")
+            .lean();
+
+        // delete all messages referencing the deleted chat
+        if (chat) {
+            await Message.deleteMany({ chat: chat.chatID }, { session });
         }
 
-        // we find all the users that are in the friend requests array
-        const requesters = await User.find({userID: { $in: requestIDs }, isDeleted: { $ne: true }})
-            .select("userID name profilePic");
-
-        // we map back all the requestedAt values to their users
-        const requestedAtMap = new Map();
-        paginatedRequests.forEach(req => {
-            requestedAtMap.set(req.user, req.requestedAt);
-        });
-
-        const requests = requesters.map(u => ({
-            ...u.toObject(),
-            requestedAt: requestedAtMap.get(u.userID)
-        }));
+        await session.commitTransaction();
         
-        return res.json({
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
-            totalResults: total,
-            requests
+        res.status(200).json({ 
+            message: "Friend removed successfully.", 
+            user: updatedUser, 
+            profile: updatedFriend 
         });
 
     } catch (error) {
-        console.error("Error in get friend requests controller:", error.message);
+        await session.abortTransaction();
+        console.error("Error in remove friend controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
+    } finally {
+        session.endSession();
     }
-}
+}; 
 
-const getSentFriendRequests = async (req, res) => {
-    try {
-        const userID = req.user.userID
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-
-        // Find the user to get their friends list
-        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("sentFriendRequests");
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        // we sort the requests based on the time requested 
-        const sortedRequests = user.sentFriendRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
-
-        const total = sortedRequests.length;
-        const startIndex = (page - 1) * limit;
-        const paginatedRequests = sortedRequests.slice(startIndex, startIndex + limit);
-
-        // get all the friends ids
-        const requestIDs = paginatedRequests.map(f => f.user);
-        
-        if (requestIDs.length === 0) {
-            // if user has no friends we return an empty array 
-            return res.json({
-                page,
-                limit,
-                totalPages: 0,
-                totalResults: 0,
-                requests: []
-            });
-        }
-
-        // we find all the users that are in the friend requests array
-        const requesters = await User.find({userID: { $in: requestIDs }, isDeleted: { $ne: true }})
-            .select("userID name profilePic");
-
-        // we map back all the requestedAt values to their users
-        const requestedAtMap = new Map();
-        paginatedRequests.forEach(req => {
-            requestedAtMap.set(req.user, req.requestedAt);
-        });
-
-        const requests = requesters.map(u => ({
-            ...u.toObject(),
-            requestedAt: requestedAtMap.get(u.userID)
-        }));
-        
-        return res.json({
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
-            totalResults: total,
-            requests
-        });
-
-    } catch (error) {
-        console.error("Error in get sent friend requests controller:", error.message);
-        res.status(500).json({ message: "Internal server error" });
-    }
-}
-
+// send a friend request to another user
 const sendFriendRequest = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const senderID = req.user.userID;
         const receiverID = parseInt(req.params.userID);   
 
+        // ensure not adding yourself
         if (senderID === receiverID) {
+            await session.abortTransaction();
             return res.status(400).json({ message: "Cannot add yourself" });
         }
 
-        const sender = await User.findOne({userID: senderID, isDeleted: { $ne: true }});
-        const receiver = await User.findOne({userID: receiverID, isDeleted: { $ne: true }});
-
+        // get data from db
+        const [sender, receiver] = await Promise.all([
+            User.findOne({userID: senderID, isDeleted: { $ne: true }}).session(session).select("userID friends").lean(),
+            User.findOne({userID: receiverID, isDeleted: { $ne: true }}).session(session).select("userID friends friendRequests").lean()
+        ]);
+        
+        // validate users existence
         if (!receiver || !sender) {
+            await session.abortTransaction();
             return res.status(404).json({ message: "User not found" });
         }
 
-        // check if they are already friends
+        // ensure users are not already friends
         const alreadyFriends = receiver.friends.some(f => f.user === senderID);
         if (alreadyFriends) {
+            await session.abortTransaction();
             return res.status(400).json({ message: "You are already friends with this user." });
         }
 
-        // check if request is already sent
+        // ensure friend request is not already sent
         const alreadyRequested = receiver.friendRequests.some(r => r.user === senderID);
         if (alreadyRequested) {
+            await session.abortTransaction();
             return res.status(400).json({ message: "Friend request already sent." });
         }
 
+        // parallel updates
         const date = new Date();
-        // add friend request to receiver
-        receiver.friendRequests.push({
-            user: senderID,
-            requestedAt: date,
-        });
+        const [updatedSender, updatedReceiver] = await Promise.all([
+            // add request to sender's sentFriendRequests
+            User.findOneAndUpdate(
+                { userID: senderID, isDeleted: { $ne: true }},
+                { $addToSet: { sentFriendRequests: { user: receiverID, requestedAt: date }}},
+                { new: true, lean: true, session }
+            ).select("-password -_id -__v"),
 
-        // add request to sender
-        sender.sentFriendRequests.push({
-            user: receiverID,
-            requestedAt: date,
-        }) 
-
-        await receiver.save();
-        await sender.save();
-
-        const { password: pw1, ...userWithoutPassword } = sender.toObject();
-        const { password: pw2, ...profileWithoutPassword } = receiver.toObject();
+            // add request to receiver's friendRequests
+            User.findOneAndUpdate(
+                { userID: receiverID, isDeleted: { $ne: true }},
+                { $addToSet: { friendRequests: { user: senderID, requestedAt: date }}},
+                { new: true, lean: true, session }
+            ).select("-password -_id -__v"),
+        ]);
+        
+        await session.commitTransaction();
 
         res.status(200).json({ 
             message: "Friend request sent successfully.", 
-            user: userWithoutPassword, 
-            profile: {...profileWithoutPassword, requestedAt: date}
+            user: updatedSender, 
+            profile: {...updatedReceiver, requestedAt: date}
         });
     } catch (error) {
+        await session.abortTransaction();
         console.error("Error in send friend request controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
+    } finally {
+        session.endSession();
     }
 }
 
+// cancel an already sent friend request
 const cancelFriendRequest = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const senderID = req.user.userID;
         const receiverID = parseInt(req.params.userID);
         
-        if (senderID === receiverID) {
-            return res.status(400).json({ message: "Invalid operation" });
+        // get data from db
+        const [sender, receiver] = await Promise.all([
+            User.findOne({userID: senderID, isDeleted: { $ne: true }}).session(session).select("userID sentFriendRequests").lean(),
+            User.findOne({userID: receiverID, isDeleted: { $ne: true }}).session(session).select("userID friendRequests").lean()
+        ]);
 
-        }
-
-        const sender = await User.findOne({userID: senderID, isDeleted: { $ne: true }});
-        const receiver = await User.findOne({userID: receiverID, isDeleted: { $ne: true }});
-
+        // validate users existence
         if (!receiver || !sender) {
+            await session.abortTransaction();
             return res.status(404).json({ message: "User not found" });
         }
 
-        // check if the request exists
+        // ensure request is already sent
         const requested = receiver.friendRequests.some(r => r.user === senderID) && sender.sentFriendRequests.some(r => r.user === receiverID);
-
         if (!requested) {
+            await session.abortTransaction();
             return res.status(400).json({ message: "No friend request to cancel" });
         }
 
-        // remove the friend request from the sender's array
-        sender.sentFriendRequests = sender.sentFriendRequests.filter(r => r.user !== receiverID);
+        // parallel updates
+        const [updatedSender, updatedReceiver] = await Promise.all([
+            // remove request from sender's sentFriendRequests
+            User.findOneAndUpdate(
+                { userID: senderID, isDeleted: { $ne: true }},
+                { $pull: { sentFriendRequests: { user: receiverID }}},
+                { new: true, lean: true, session }
+            ).select("-password -_id -__v"),
 
-        // remove the friend request from the receiver's array
-        receiver.friendRequests = receiver.friendRequests.filter(r => r.user !== senderID);
-
-        await sender.save();
-        await receiver.save();
-
-        const { password: pw1, ...userWithoutPassword } = sender.toObject();
-        const { password: pw2, ...profileWithoutPassword } = receiver.toObject();
+            // remove request from receiver's friendRequests
+            User.findOneAndUpdate(
+                { userID: receiverID, isDeleted: { $ne: true }},
+                { $pull: { friendRequests: { user: senderID }}},
+                { new: true, lean: true, session }
+            ).select("-password -_id -__v"),
+        ]);
+        
+        await session.commitTransaction();
 
         res.status(200).json({ 
             message: "Friend request canceled successfully", 
-            user: userWithoutPassword, 
-            profile: profileWithoutPassword 
+            user: updatedSender, 
+            profile: updatedReceiver 
         });
     } catch (error) {
+        await session.abortTransaction();
         console.error("Error in cancel friend request controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
+    } finally {
+        session.endSession();
     }
 }
 
+// accept a receieved friend request
 const acceptFriendRequest = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const currentUserID = req.user.userID;
         const requesterID = parseInt(req.params.userID);
 
-        const currentUser = await User.findOne({userID: currentUserID, isDeleted: { $ne: true }});
-        const requester = await User.findOne({userID: requesterID, isDeleted: { $ne: true }});
+        // get data from db
+        const [currentUser, requester] = await Promise.all([
+            User.findOne({userID: currentUserID, isDeleted: { $ne: true }}).session(session).select("userID friends friendRequests").lean(),
+            User.findOne({userID: requesterID, isDeleted: { $ne: true }}).session(session).select("userID friends sentFriendRequests").lean()
+        ]);
 
+        // validate users existence
         if (!currentUser || !requester) {
+            await session.abortTransaction();
             return res.status(404).json({ message: "User not found" });
         }
 
-        // check if the request exists
+        // ensure request is already sent
         const requested = currentUser.friendRequests.some(r => r.user === requesterID) && requester.sentFriendRequests.some(r => r.user === currentUserID);
-
         if (!requested) {
+            await session.abortTransaction();
             return res.status(400).json({ message: "No friend request from this user" });
         }
 
-        // check if the users are already friends
+        // ensure users are not already friends
         const alreadyFriends = currentUser.friends.some(f => f.user === requesterID) && requester.friends.some(f => f.user === currentUserID);
         if (alreadyFriends) {
+            await session.abortTransaction();
             return res.status(400).json({ message: "Already friends." });
         }
 
-        // add each other to friends
+        // parallel updates
         const date = new Date();
-        currentUser.friends.push({ user: requesterID, friendsSince: date });
-        requester.friends.push({ user: currentUserID, friendsSince: date });
+        const [updatedUser, updatedRequester] = await Promise.all([
+            // update friends and friendRequests of current user
+            User.findOneAndUpdate(
+                { userID: currentUserID, isDeleted: { $ne: true }},
+                { 
+                    $pull: { friendRequests: { user: requesterID }},
+                    $addToSet: { friends: { user: requesterID, friendsSince: date }}
+                },
+                { new: true, lean: true, session }
+            ).select("-password -_id -__v"),
 
-        // remove the friend request from the current user's array
-        currentUser.friendRequests = currentUser.friendRequests.filter(r => r.user !== requesterID);
-
-        // remove the friend request from the requesters array
-        requester.sentFriendRequests = requester.sentFriendRequests.filter(r => r.user !== currentUserID);
-
-        await currentUser.save();
-        await requester.save();
-
-        const { password: pw1, ...userWithoutPassword } = currentUser.toObject();
-        const { password: pw2, ...profileWithoutPassword } = requester.toObject();
-
+            // update friends and sentFriendRequests of requester
+            User.findOneAndUpdate(
+                { userID: requesterID, isDeleted: { $ne: true }},
+                { 
+                    $pull: { sentFriendRequests: { user: currentUserID }},
+                    $addToSet: { friends: { user: currentUserID, friendsSince: date }}
+                },
+                { new: true, lean: true, session }
+            ).select("-password -_id -__v"),
+        ]);
+        
+        await session.commitTransaction();
 
         res.status(200).json({ 
             message: "Friend request accepted", 
-            user: userWithoutPassword, 
-            profile: {...profileWithoutPassword, friendsSince: date} 
+            user: updatedUser, 
+            profile: {...updatedRequester, friendsSince: date} 
         });
 
     } catch (error) {
+        await session.abortTransaction();
         console.error("Error in accept friend request controller :", error.message);
         res.status(500).json({ message: "Internal server error" });
+    } finally {
+        session.endSession();
     }
 };
 
+// decline a receieved friend request
 const declineFriendRequest = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const currentUserID = req.user.userID;
         const requesterID = parseInt(req.params.userID);
 
-        const currentUser = await User.findOne({userID: currentUserID, isDeleted: { $ne: true }});
-        const requester = await User.findOne({userID: requesterID, isDeleted: { $ne: true }});
+        // get data from db
+        const [currentUser, requester] = await Promise.all([
+            User.findOne({userID: currentUserID, isDeleted: { $ne: true }}).session(session).select("userID friendRequests").lean(),
+            User.findOne({userID: requesterID, isDeleted: { $ne: true }}).session(session).select("userID sentFriendRequests").lean()
+        ]);
 
+        // validate users existence
         if (!currentUser || !requester) {
+            await session.abortTransaction();
             return res.status(404).json({ message: "User not found" });
         }
 
-        // check if the request exists
+        // ensure request is already sent
         const requested = currentUser.friendRequests.some(r => r.user === requesterID) && requester.sentFriendRequests.some(r => r.user === currentUserID);
-
         if (!requested) {
+            await session.abortTransaction();
             return res.status(400).json({ message: "No friend request from this user" });
         }
 
-        // remove the friend request from the current user's array
-        currentUser.friendRequests = currentUser.friendRequests.filter(r => r.user !== requesterID);
+        // parallel updates
+        const [updatedUser, updatedRequester] = await Promise.all([
+            // remove request from user's friendRequests
+            User.findOneAndUpdate(
+                { userID: currentUserID, isDeleted: { $ne: true }},
+                { $pull: { friendRequests: { user: requesterID }}},
+                { new: true, lean: true, session }
+            ).select("-password -_id -__v"),
 
-        // remove the friend request from the requesters array
-        requester.sentFriendRequests = requester.sentFriendRequests.filter(r => r.user !== currentUserID);
+            // remove request from requester's sentFriendRequests
+            User.findOneAndUpdate(
+                { userID: requesterID, isDeleted: { $ne: true }},
+                { $pull: { sentFriendRequests: { user: currentUserID }}},
+                { new: true, lean: true, session }
+            ).select("-password -_id -__v"),
+        ]);
 
-        await currentUser.save();
-        await requester.save();
+        await session.commitTransaction();
 
-        const { password: pw1, ...userWithoutPassword } = currentUser.toObject();
-        const { password: pw2, ...profileWithoutPassword } = requester.toObject();
-
-        res.status(200).json({ message: "Friend request declined", user: userWithoutPassword, profile: profileWithoutPassword });
+        res.status(200).json({ 
+            message: "Friend request declined", 
+            user: updatedUser, 
+            profile: updatedRequester 
+        });
 
     } catch (error) {
+        await session.abortTransaction();
         console.error("Error in decline friend request controller:", error.message);
         res.status(500).json({ message: "Internal server error" });
+    } finally {
+        session.endSession();
     }
 }
 
-const getSentJoinRequests = async (req, res) => {
-    try {
-        const userID = req.user.userID
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-
-        // Find the user to get their sent join requests list
-        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("sentJoinRequests");
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        // we sort the requests based on the time requested 
-        const sortedRequests = user.sentJoinRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
-
-        const total = sortedRequests.length;
-        const startIndex = (page - 1) * limit;
-        const paginatedRequests = sortedRequests.slice(startIndex, startIndex + limit);
-
-        // get all the group ids
-        const requestIDs = paginatedRequests.map(f => f.group);
-        
-        if (requestIDs.length === 0) {
-            // if user has no sent request we return an empty array 
-            return res.json({
-                page,
-                limit,
-                totalPages: 0,
-                totalResults: 0,
-                requests: []
-            });
-        }
-
-        // we find all the groups that are in the sent join requests array
-        const requesters = await Group.find({groupID: { $in: requestIDs }})
-            .select("groupID name image");
-
-        // we map back all the requestedAt values to their groups
-        const requestedAtMap = new Map();
-        paginatedRequests.forEach(req => {
-            requestedAtMap.set(req.group, req.requestedAt);
-        });
-
-        const requests = requestIDs.map(id => {
-            const group = requesters.find(g => g.groupID === id);
-            if (!group) return null;
-            return {
-                ...group.toObject(),
-                requestedAt: requestedAtMap.get(group.groupID)
-            };
-        }).filter(Boolean);
-        
-        return res.json({
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
-            totalResults: total,
-            requests
-        });
-
-    } catch (error) {
-        console.error("Error in get sent join request controller:", error.message);
-        res.status(500).json({ message: "Internal server error" });
-    }
-}
 
 module.exports = {
     getUsers, getUserDetails, 

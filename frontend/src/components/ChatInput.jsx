@@ -130,7 +130,7 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
             if(res?.newMessage) {
                 const newMessages = [...messages, res.newMessage];
                 updateMessages(newMessages);
-                onSendMessage(res.chat);
+                onSendMessage(chat.chatID, res.newMessage, res.updatedAt);
             }
 
             // clear states

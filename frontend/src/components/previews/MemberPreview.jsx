@@ -269,7 +269,7 @@ const MemberPreview = ({member, groupID = null, isFriend = false, isAdmin = fals
                                 text="Cancel"
                                 className='p-2 flex-1 text-sm lg:text-[16px]'
                                 type='button'
-                                disabled={loading}
+                                disabled={removing}
                                 onClick={() => setRemoveModal(false)}
                             />
                             {/* confirm button (remove member) */}
@@ -278,7 +278,7 @@ const MemberPreview = ({member, groupID = null, isFriend = false, isAdmin = fals
                                 className='p-2 flex-1 text-sm lg:text-[16px]'
                                 type='button'
                                 isColored={true}
-                                disabled={loading}
+                                disabled={removing}
                                 onClick={handleRemove}
                             />
                         </div>

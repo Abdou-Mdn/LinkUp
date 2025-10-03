@@ -4,11 +4,8 @@ const router = express.Router();
 const authMiddleware = require("../middleware/auth.middleware");
 const { 
     getChats, getChatMessages, getPrivateChat, getGroupChat,
-    sendMessage,
-    markMessagesAsSeen,
-    editMessage,
-    deleteMessage,
-    sendGroupInvites
+    sendMessage, markMessagesAsSeen,
+    editMessage, deleteMessage, sendGroupInvites
 } = require("../controllers/chat.controller");
 
 // route is /api/chat

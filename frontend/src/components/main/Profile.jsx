@@ -71,7 +71,10 @@ const Profile = ({ user, mutualFriends = null, setUser, loading, updateList, upd
       updateFriendRequests(prev => prev.filter(r => r.userID !== profile.userID));
     }
     if(updateFriends){
-      updateFriends(prev => [...prev, profile]);
+      updateFriends(prev => {
+        const newFriends = [...prev, profile]
+        return newFriends.sort((a, b) => a.name.localeCompare(b.name));
+      });
     }
   }
 

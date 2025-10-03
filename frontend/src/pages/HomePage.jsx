@@ -131,7 +131,7 @@ const Main = ({ chat, loadingChat, onSendMessage, onEditMessage, onDeleteMessage
  * - `getChats`, `markMessagesAsSeen`
 */
 function HomePage() {
-  const { selectedChat, loadingChat, selectChat, updateSelectedChat } = useChatStore();
+  const { selectedChat, loadingChat, selectChat } = useChatStore();
 
   /* -------- aside states -------- */
 
@@ -213,11 +213,17 @@ function HomePage() {
   }
 
   // update chats list and selected chat after sending a message
-  const onSendMessage = (chat) => {
-    let newChats = chats.filter(c => c.chatID != chat.chatID);
-    newChats = [chat, ...newChats];
+  const onSendMessage = (chatID, lastMessage, updatedAt ) => {
+    const existingChat = chats.find(c => c.chatID === chatID);
+    if (!existingChat) return; 
+
+    const updatedChat = { ...existingChat, lastMessage, updatedAt };
+
+    const newChats = [
+      updatedChat,
+      ...chats.filter(c => c.chatID !== chatID)
+    ];
     setChats(newChats);
-    updateSelectedChat(chat);
   }
 
   // update chats list and selected chat after editing a message

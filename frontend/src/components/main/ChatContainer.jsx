@@ -36,7 +36,7 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
 
   // check if chat is private then get other user infos from chat participants
   let otherUser = null, isOnline = null;
-  if(!selectedChat.isGroup) {
+  if(!selectedChat.isGroup && !loadingChat) {
     otherUser = selectedChat.participants.filter(p => p.userID !== authUser.userID)[0];
   } 
   

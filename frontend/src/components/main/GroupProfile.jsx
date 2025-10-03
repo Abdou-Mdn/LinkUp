@@ -159,7 +159,10 @@ const GroupProfile = ({
       updateMemberGroups(prev => prev.map(g => g.groupID == group.groupID ? group : g));
     }
 
-    setMembers(prev => [...prev, ...addedUsers]);
+    setMembers(prev => {
+      const newMembers = [...prev, addedUsers];
+      return newMembers.sort((a, b) => a.name.localeCompare(b.name));
+    });
   }
 
   // handle updates on remove member
@@ -202,7 +205,10 @@ const GroupProfile = ({
     }
 
     setRequests(prev => prev.filter(r => r.userID !== addedUser.userID));
-    setMembers(prev => [...prev, addedUser]);
+    setMembers(prev => {
+      const newMembers = [...prev, addedUser];
+      return newMembers.sort((a, b) => a.name.localeCompare(b.name));
+    });
   }
 
   // handle updates on decline join request
