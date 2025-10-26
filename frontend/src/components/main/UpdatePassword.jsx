@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { AnimatePresence } from 'motion/react';
 
 import { useAuthStore } from '../../store/auth.store';
 
@@ -168,9 +169,11 @@ const UpdatePassword = () => {
             </div>
         </form>
         {/* forgot password modal */}
+        <AnimatePresence>
         {
             displayModal && <ForgotPasswordModal onClose={() => setDisplayModal(false)} />
         }
+        </AnimatePresence>
     </>
   )
 }

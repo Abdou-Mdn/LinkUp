@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { MessageSquareMore, UserX, UserCheck, X, UserPlus, TriangleAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AnimatePresence } from 'motion/react';
 
 import { useAuthStore } from '../store/auth.store'
 import { useChatStore } from '../store/chat.store';
@@ -12,6 +13,8 @@ import { formatDateWithSuffix } from '../lib/util/timeFormat';
 import PrimaryButton from './PrimaryButton';
 import SecondaryButton from './SecondaryButton';
 import TertiaryButton from './TertiaryButton';
+import AnimatedModal from './AnimatedModal';
+
 
 /* 
  * ProfileButtons Component
@@ -228,16 +231,14 @@ const ProfileButtons = ({user, onAdd, onCancel, onAccept, onDecline, onUnfriend}
                 </div>
             </div>  
             {/* remove friend confirmation modal */}      
+            <AnimatePresence>
             {
                 unfriendModel && (
-                    <div onClick={() => setUnfriendModel(false)} 
-                        className='bg-[#00000066] dark:bg-[#ffffff33] fixed inset-0 z-50 flex items-center justify-center'
+                    <AnimatedModal 
+                        onClose={() => setUnfriendModel(false)}
+                        className='h-fit max-h-[40%] w-[50%] min-w-[350px] rounded-2xl flex flex-col items-center justify-center p-10 gap-4 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'
                     >
-                        <div 
-                            onClick={(e) => e.stopPropagation()} 
-                            className='h-fit max-h-[40%] w-[50%] min-w-[350px] rounded-2xl flex flex-col items-center justify-center p-10 gap-4 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'
-                        >
-                            <h3 className='text-danger text-center lg:text-xl font-semibold flex items-center gap-2'>
+                        <h3 className='text-danger text-center lg:text-xl font-semibold flex items-center gap-2'>
                                 <TriangleAlert className='size-5' />
                                 <span> Confirm Removing Friend</span>
                                 <TriangleAlert className='size-5' />
@@ -267,10 +268,11 @@ const ProfileButtons = ({user, onAdd, onCancel, onAccept, onDecline, onUnfriend}
                                     onClick={unfriend}
                                 />
                             </div>
-                        </div>
-                    </div>
+                    </AnimatedModal>
+                    
                 )
             }
+            </AnimatePresence>
         </>
     )
   )

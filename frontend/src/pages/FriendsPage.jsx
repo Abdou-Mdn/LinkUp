@@ -13,6 +13,8 @@ import ProfilePreview from '../components/previews/ProfilePreview'
 import RequestPreview from '../components/previews/RequestPreview'
 import RequestPreviewSkeleton from '../components/skeleton/RequestPreviewSkeleton'
 import ProfilePreviewSkeleton from '../components/skeleton/ProfilePreviewSkeleton'
+import TabNavigation from '../components/TabNavigation'
+import TabSections from '../components/TabSections'
 
 
 /* 
@@ -41,7 +43,7 @@ import ProfilePreviewSkeleton from '../components/skeleton/ProfilePreviewSkeleto
  * - updateSentRequests: update the sent friend requests list (on send/cancel request) 
 */
 const Aside = ({
-  activeTab, setActiveTab,
+  tabs, activeTab, onTabChange, direction,
   friends, friendRequests, sentRequests,
   loading, loadingMore, loadMore, selectedUser, setUser, selectUser,
   updateFriends, updateFriendRequests, updateSentRequests
@@ -67,7 +69,7 @@ const Aside = ({
     );
 
     // get which loader to attach to the observer
-    const target = activeTab == "friends" ? friendsLoaderRef.current : activeTab == "requests" ? requestsLoaderRef.current : sentLoaderRef.current;
+    const target = activeTab == 1 ? friendsLoaderRef.current : activeTab == 2 ? requestsLoaderRef.current : sentLoaderRef.current;
     if(target) observer.observe(target);
 
     return () => observer.disconnect();
@@ -105,75 +107,48 @@ const Aside = ({
   }
 
   return (
-    <div className='w-full h-screen flex flex-col items-center
-    bg-light-200 text-light-txt dark:bg-dark-200 dark:text-dark-txt'>
+    <div className='w-full h-screen flex flex-col items-center bg-light-200 text-light-txt dark:bg-dark-200 dark:text-dark-txt'>
 
       {/* tabs */}
-      <div className='flex items-center justify-between w-full gap-1'>
-        {/* friends */}
-        <div 
-          title='Friends' 
-          className={`flex-1 py-3 text-sm font-outfit font-medium text-center cursor-pointer border-b-2 ${activeTab == "friends" ? 'text-primary border-primary border-b-4' : 'text-light-txt dark:text-dark-txt border-light-txt dark:border-dark-txt hover:text-light-txt2 dark:hover:text-dark-txt2 hover:border-light-txt2 dark:hover:border-dark-txt2'}`}
-          onClick={() => setActiveTab("friends")}
-        >
-          Friends
+      <TabNavigation
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={onTabChange}
+      />
+      
+      {/* sections */}
+      <TabSections activeTab={activeTab} direction={direction}>
+        {/* friends section */}
+        <div tabID={1} className='w-full flex-1 px-2 overflow-y-auto scrollbar'>
+          {
+            // display skeletons while loading friends
+            loading ? (
+              Array.from({ length: 8 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
+            ) :
+            // empty friends list
+            friends.length == 0 ? (
+              <div className='flex-1 py-10 flex flex-col items-center gap-2'> 
+                <Ghost className='size-6' />
+                You have no friends 
+              </div> 
+            ) : 
+            <ul className='px-1'>
+              {
+                // friends list
+                friends.map(friend => <ProfilePreview key={friend.userID} user={friend} onSelect={selectUser} isSelected={selectedUser?.userID === friend.userID}/>) 
+              }
+              {
+                // display skeletons while loading more
+                loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
+              }
+              {/* sentinal div for loading more friends */}
+              <div ref={friendsLoaderRef}></div>
+            </ul> 
+          }
         </div>
 
-        {/* friend requests */}
-        <div 
-          title='Friend Requests' 
-          className={`flex-1 py-3 text-sm font-outfit font-medium text-center cursor-pointer border-b-2 truncate ${activeTab == "requests" ? 'text-primary border-primary border-b-4' : 'text-light-txt dark:text-dark-txt border-light-txt dark:border-dark-txt hover:text-light-txt2 dark:hover:text-dark-txt2 hover:border-light-txt2 dark:hover:border-dark-txt2'}`}
-          onClick={() => setActiveTab("requests")}
-        >
-          Friend Requests
-        </div>
-        
-        {/* sent requests */}
-        <div 
-          title='Sent Requests' 
-          className={`flex-1 py-3 text-sm font-outfit font-medium text-center cursor-pointer border-b-2 truncate ${activeTab == "sent" ? 'text-primary border-primary border-b-4' : 'text-light-txt dark:text-dark-txt border-light-txt dark:border-dark-txt hover:text-light-txt2 dark:hover:text-dark-txt2 hover:border-light-txt2 dark:hover:border-dark-txt2'}`}
-          onClick={() => setActiveTab("sent")}
-        >
-          Sent Requests
-        </div>
-      </div>
-      
-      {/* ** friends tab ** */}
-      {
-        activeTab == "friends" && (
-          <div className='w-full flex-1 px-2 overflow-y-auto scrollbar'> 
-            {
-              // display skeletons while loading friends
-              loading ? (
-                Array.from({ length: 8 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
-              ) :
-              // empty friends list
-              friends.length == 0 ? (
-                <div className='flex-1 py-10 flex flex-col items-center gap-2'> 
-                  <Ghost className='size-6' />
-                  You have no friends 
-                </div> 
-              ) : 
-              <ul className='px-1'>
-                {
-                  // friends list
-                  friends.map(friend => <ProfilePreview key={friend.userID} user={friend} onSelect={selectUser} isSelected={selectedUser?.userID === friend.userID}/>) 
-                }
-                {
-                  // display skeletons while loading more
-                  loadingMore && Array.from({ length: 2 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
-                }
-                {/* sentinal div for loading more friends */}
-                <div ref={friendsLoaderRef}></div>
-              </ul> 
-            }
-          </div>
-        )
-      }
-      {/* ** friend requests tab ** */}
-      {
-        activeTab == "requests" && (
-          <div className='w-full flex-1 px-2 overflow-y-auto scrollbar'> 
+        {/* friend requests section */}
+        <div tabID={2} className='w-full flex-1 px-2 overflow-y-auto scrollbar'> 
             {
               // display skeletons while loading requests 
               loading ? (
@@ -210,12 +185,9 @@ const Aside = ({
               </ul> 
             }
           </div>
-        )
-      }
-      {/* sent requests tab */} 
-      {
-        activeTab == "sent" && (
-          <div className='w-full flex-1 px-2 overflow-y-auto scrollbar'> 
+
+          {/* sent friend requests section */}
+          <div tabID={3} className='w-full flex-1 px-2 overflow-y-auto scrollbar'> 
             {
               // display skeletons while loading sent friend requests
               loading ? (
@@ -251,8 +223,7 @@ const Aside = ({
               </ul> 
             }
           </div>
-        )
-      } 
+      </TabSections> 
     </div>
   )
 }
@@ -312,7 +283,12 @@ function FriendsPage() {
   const { setMainActive } = useLayoutStore();
   
   /* -------- aside states -------- */
-  const [activeTab, setActiveTab] = useState("friends"); // active tab control state: "friends" | "requests" | "sent"
+  const [activeTab, setActiveTab] = useState(1); // active tab control state: 1:"friends" | 2:"friend requests" | 3:"sent requests"
+  const tabs = [
+    { id: 1, label: "Friends"},
+    { id: 2, label: "Friend Requests"},
+    { id: 3, label: "Sent Requests"}
+  ];
 
   const [loading, setLoading] = useState(false); // initial loading state
   const [loadingMore, setLoadingMore] = useState(false); // loading more state
@@ -333,6 +309,16 @@ function FriendsPage() {
   const [hasMoreSentRequests, setHasMoreSentRequests] = useState(false);
 
   const limit = 10; // items per page
+
+  // framer motion animation states
+  const [direction, setDirection] = useState(0);
+
+  const handleTabChange = (newTab) => {
+    const currentIndex = tabs.findIndex(t => t.id === activeTab);
+    const newIndex = tabs.findIndex(t => t.id === newTab);
+    setDirection(newIndex > currentIndex ? 1 : -1);
+    setActiveTab(newTab);
+  }
 
   /* -------- main states -------- */
 
@@ -432,9 +418,9 @@ function FriendsPage() {
 
   // load data based on active tab
   const fetchData = async (reset = false) => {
-    if(activeTab == "friends") {
+    if(activeTab == 1) {
       await fetchFriends(reset);
-    } else if (activeTab == "requests") {
+    } else if (activeTab == 2) {
       await fetchFriendRequests(reset);
     } else {
       await fetchSentRequests(reset);
@@ -497,8 +483,10 @@ function FriendsPage() {
     <ResponsiveLayout
       aside={
         <Aside 
+          tabs={tabs}
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          onTabChange={handleTabChange}
+          direction={direction}
           friends={friends}
           friendRequests={friendRequests}
           sentRequests={sentRequests}

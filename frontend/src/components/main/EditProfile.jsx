@@ -6,6 +6,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { registerLocale } from 'react-datepicker';
 import enUS from 'date-fns/locale/en-US';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'motion/react';
 
 import { useAuthStore } from '../../store/auth.store'
 
@@ -82,7 +83,7 @@ const SocialInput = ({social,id, onSave, onDelete, setDisabled}) => {
     username: social.label || ""
   });
 
-  // dropdpwn logic
+  // dropdown logic
   const [showDropdown, setShowDropdown] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState("bottom");
   const dropdownRef = useRef(null);
@@ -93,6 +94,21 @@ const SocialInput = ({social,id, onSave, onDelete, setDisabled}) => {
   const generatedLink = currentPlatform.baseUrl + username.trim(); 
   const hasChanges = savedState.platform !== platform || savedState.username !== username.trim();
 
+  // animation varaiants
+    const variants = {
+        initial: (position) => ({
+            opacity: 0,
+            y: position == 'top' ? 10 : -10
+        }),
+        animate: {
+            opacity: 1,
+            y: 0
+        },
+        exit: (position) => ({
+            opacity: 0,
+            y: position == 'top' ? 10 : -10
+        })
+    }
 
   // handle dropdown position (top/bottom based on available space)
   useEffect(() => {
@@ -204,10 +220,17 @@ const SocialInput = ({social,id, onSave, onDelete, setDisabled}) => {
       </span>
       
       {/* dropdown menu */}
+      <AnimatePresence>
       {showDropdown && 
-        <div
+        <motion.div
           ref={dropdownRef}
           className={`border-1 drop-shadow-lg rounded-lg w-[80%] min-w-[250px] py-2 px-1 flex flex-col gap-2 absolute z-10 left-0 ${dropdownPosition === 'top' ? 'bottom-full mb-2' : 'top-10'} bg-light-200 border-light-txt2 text-light-txt dark:bg-dark-200 dark:border-dark-txt2 dark:text-dark-txt`}
+          variants={variants}
+          custom={dropdownPosition}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={{ duration: 0.2, ease: 'easeOut' }}
         >
           {
             platforms.map((item, index) => (
@@ -221,8 +244,9 @@ const SocialInput = ({social,id, onSave, onDelete, setDisabled}) => {
               </button>
             ))
           }
-        </div>
+        </motion.div>
       }
+      </AnimatePresence>
     </div>
   )
   

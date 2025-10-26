@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { Ghost, Plus } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
 
 import { useLayoutStore } from '../store/layout.store';
 
@@ -14,7 +15,8 @@ import RequestPreviewSkeleton from '../components/skeleton/RequestPreviewSkeleto
 import SentJoinRequestPreview from '../components/previews/SentJoinRequestPreview';
 import TertiaryButton from '../components/TertiaryButton';
 import CreateGroupModal from '../components/layout/CreateGroupModal';
-
+import TabNavigation from '../components/TabNavigation';
+import TabSections from '../components/TabSections';
 
 /* 
  * Aside component
@@ -42,7 +44,7 @@ import CreateGroupModal from '../components/layout/CreateGroupModal';
  * - selectGroup: open a group profile to display on main
 */
 const Aside = ({
-  activeTab, setActiveTab, view, setView, setIsModalActive,
+  tabs, activeTab, onTabChange, direction, view, setView, setIsModalActive,
   memberGroups, adminGroups, requests, setRequests, loadMore, loading, loadingMore,
   selectedGroup, selectGroup, setGroup
 }) => {
@@ -65,7 +67,7 @@ const Aside = ({
     );
 
     // select loader to which we attach the observer
-    const target = activeTab == "requests" ? requestLoaderRef.current : view == "member" ? memberLoaderRef.current : adminLoaderRef.current;
+    const target = activeTab == 2 ? requestLoaderRef.current : view == "member" ? memberLoaderRef.current : adminLoaderRef.current;
     if(target) observer.observe(target);
 
     return () => observer.disconnect();
@@ -81,40 +83,27 @@ const Aside = ({
     <div className='w-full h-screen flex flex-col items-center
     bg-light-200 text-light-txt dark:bg-dark-200 dark:text-dark-txt'>
       {/* tabs */}
-      <div className='flex items-center justify-between w-full gap-1'>
-        {/* groups */}
-        <div 
-          title='Groups' 
-          className={`flex-1 py-3 text-sm font-outfit font-medium text-center cursor-pointer border-b-2 ${activeTab == "groups" ? 'text-primary border-primary border-b-4' : 'text-light-txt dark:text-dark-txt border-light-txt dark:border-dark-txt hover:text-light-txt2 dark:hover:text-dark-txt2 hover:border-light-txt2 dark:hover:border-dark-txt2'}`}
-          onClick={() => setActiveTab("groups")}
-        >
-          My Groups
-        </div>
+      <TabNavigation
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={onTabChange}
+      />
 
-        {/* sent requests */}
-        <div 
-          title='Sent Requests' 
-          className={`flex-1 py-3 text-sm font-outfit font-medium text-center cursor-pointer border-b-2 truncate ${activeTab == "requests" ? 'text-primary border-primary border-b-4' : 'text-light-txt dark:text-dark-txt border-light-txt dark:border-dark-txt hover:text-light-txt2 dark:hover:text-dark-txt2 hover:border-light-txt2 dark:hover:border-dark-txt2'}`}
-          onClick={() => setActiveTab("requests")}
-        >
-          Sent Requests
-        </div>
-      </div>
-
-      {/* ** Groups tab ** */}
-      {
-        activeTab == "groups" && (
-          <div className='w-full flex-1 px-2 flex flex-col overflow-y-auto scrollbar'>
-            {/* create group button (opens modal) */}
-            <TertiaryButton
-              leftIcon={<Plus className='size-5 lg:size-6' />}
-              text="Create Group"
-              className='py-2 px-3 w-fit text-sm lg:text-[16px] my-2 self-end'
-              onClick={() => setIsModalActive(true)}
-            /> 
-            {/* lists */}
+      {/* sections */}
+      <TabSections activeTab={activeTab} direction={direction}>
+        {/* groups section */}
+        <div tabID={1} className='w-full flex-1 px-2 flex flex-col'>
+          {/* create group button (opens modal) */}
+          <TertiaryButton
+            leftIcon={<Plus className='size-5 lg:size-6' />}
+            text="Create Group"
+            className='py-2 px-3 w-fit text-sm lg:text-[16px] my-2 self-end'
+            onClick={() => setIsModalActive(true)}
+          /> 
+          {/* lists */}
+          <div className='flex-1 w-full flex flex-col'>
             {/* member groups list */}
-            <div className={`flex-col px-2 pb-2 ${view == "admin" ? 'hidden' : 'flex'}`}>
+            <div className={`flex-col px-2 pb-2 transition-all ease-in-out overflow-hidden ${view == "admin" ? 'h-0 opacity-0' : view === "member" ? 'h-full' : 'h-1/2'}`}>
               <div className='flex items-center justify-between w-full mb-2'>
                 {/* title */}
                 <span className='text-lg font-outfit font-semibold' >Groups I'm member of</span>
@@ -137,7 +126,7 @@ const Aside = ({
                     No groups found 
                   </div> 
                 ) : 
-                <ul>
+                <ul className='overflow-y-auto scrollbar'>
                   {
                     // display only 4, whole list if expanded
                     view == "both" ? 
@@ -157,7 +146,7 @@ const Aside = ({
             </div>
 
             {/* admin groups list */}
-            <div className={`flex-col px-2 pb-2 ${view == "member" ? 'hidden' : 'flex'}`}>
+            <div className={`flex-col px-2 pb-2 transition-all ease-in-out overflow-hidden ${view == "member" ? 'h-0 opacity-0' : view === "admin" ? 'h-full' : 'h-1/2'}`}>
               <div className='flex items-center justify-between w-full mb-2'>
                 {/* title */}
                 <span className='text-lg font-outfit font-semibold' >Groups I'm admin of</span>
@@ -180,7 +169,7 @@ const Aside = ({
                     No groups found 
                   </div> 
                 ) : 
-                <ul>
+                <ul className='overflow-y-auto scrollbar'>
                   {
                     // display only 4, or whole list if expanded
                     view == "both" ? 
@@ -199,13 +188,10 @@ const Aside = ({
               }
             </div>
           </div>
-        )
-      }
+        </div>
 
-      {/* ** sent requests tab ** */}
-      {
-        activeTab == "requests" && (
-          <div className='w-full flex-1 px-2 overflow-y-auto scrollbar'>
+        {/* sent join requests section */}  
+        <div tabID={2} className='w-full flex-1 px-2 overflow-y-auto scrollbar'>
             {
               // display skeletons while laoding requests
               loading ? (
@@ -233,8 +219,7 @@ const Aside = ({
               </ul>
             }
           </div>
-        )
-      }
+      </TabSections>
     </div>
   )
 }
@@ -306,7 +291,11 @@ function GroupsPage() {
   const { setMainActive } = useLayoutStore();
 
   /* -------- aside states -------- */
-  const [activeTab, setActiveTab] = useState("groups"); // active tab control state: "groups" || "requests"
+  const [activeTab, setActiveTab] = useState(1); // active tab control state: 1:"groups" || 2:"sent join requests"
+  const tabs = [
+    { id: 1, label: "My Groups"},
+    { id: 2, label: "Sent Requests"},
+  ];
   const [view, setView] = useState("both"); // active view more control state: "both" || "member" || "admin"
 
   // create group modal visibility
@@ -331,6 +320,16 @@ function GroupsPage() {
   const [hasMoreRequests, setHasMoreRequests] = useState(false);
 
   const limit = 10; // items per page
+
+  // framer motion animation states
+  const [direction, setDirection] = useState(0);
+
+  const handleTabChange = (newTab) => {
+    const currentIndex = tabs.findIndex(t => t.id === activeTab);
+    const newIndex = tabs.findIndex(t => t.id === newTab);
+    setDirection(newIndex > currentIndex ? 1 : -1);
+    setActiveTab(newTab);
+  }
 
   /* -------- main states -------- */
   const [loadingProfile, setLoadingProfile] = useState(false); // laoding profile state
@@ -358,7 +357,7 @@ function GroupsPage() {
       let memberRes, adminRes, requestRes;
 
       // get groups if active tab is groups
-      if(activeTab == "groups") {
+      if(activeTab == 1) {
         if(reset) {
           // get both member groups and admin groups (on parallel) if resseting 
           [ memberRes, adminRes ] = await Promise.all([
@@ -373,7 +372,7 @@ function GroupsPage() {
             adminRes = await getAdminGroups(reset, adminPage, limit);
           }
         }
-      } else if (activeTab == "requests") {
+      } else if (activeTab == 2) {
         // get sent join requests if active tab is requests
         if(reset || hasMoreRequests) {
           requestRes = await getSentJoinRequests(reset, requestPage, limit);
@@ -546,8 +545,10 @@ function GroupsPage() {
       <ResponsiveLayout 
         aside={
           <Aside 
+            tabs={tabs}
             activeTab={activeTab}
-            setActiveTab={setActiveTab}
+            onTabChange={handleTabChange}
+            direction={direction}
             view={view}
             setView={setView}
             setIsModalActive={setIsModalActive}
@@ -584,7 +585,9 @@ function GroupsPage() {
           />
         }
       />
-      {isModalActive && <CreateGroupModal onClose={() => setIsModalActive(false)} onCreate={onCreateGroup} />}
+      <AnimatePresence>
+        {isModalActive && <CreateGroupModal onClose={() => setIsModalActive(false)} onCreate={onCreateGroup} />}
+      </AnimatePresence>
     </>
   )
 }

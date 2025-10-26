@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { CalendarCheck, Clock, Ghost, Handshake, Hourglass, TriangleAlert, UserPlus, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { AnimatePresence } from 'motion/react'
 
 import { useAuthStore } from '../../store/auth.store'
 
@@ -420,6 +421,7 @@ const GroupProfile = ({
         </div>
       </div>
       {/* edit group modal */}
+      <AnimatePresence>
       {
         editModal && 
         <EditGroupModal 
@@ -429,7 +431,9 @@ const GroupProfile = ({
           onDelete={onDelete}
         />
       }
+      </AnimatePresence>
       {/* add members modal */}
+      <AnimatePresence>
       {
         addModal && 
         <AddMemberModal 
@@ -441,6 +445,7 @@ const GroupProfile = ({
           onAcceptRequest={onAcceptRequest}
         />
       }
+      </AnimatePresence>
     </>        
   )
 }

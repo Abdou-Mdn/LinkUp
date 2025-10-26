@@ -100,7 +100,7 @@ const ChatPreview = ({chat, onSelect = () => {}}) => {
             {/* message infos + timestamp */}
             <div className={`flex items-center gap-1 text-sm ${seenByMe && 'text-light-txt2 dark:text-dark-txt2'}`}>
                 <p className='truncate'>{additionalInfo}</p>
-                <p className='text-xs shrink-0'>{`• ${timeSince(chat.updatedAt)}`}</p>
+                <p className='text-xs shrink-0'>{`• ${timeSince(chat.updatedAt, "")}`}</p>
             </div>
        </div>
        {/* if message is not seen by me display a small bullet point */}

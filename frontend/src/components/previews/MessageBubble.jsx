@@ -1,6 +1,7 @@
 import React, { forwardRef, useEffect, useRef, useState } from 'react'
 import { Ban, CheckCheck, CirclePlus, ClipboardCopy, Download, Reply, SquarePen, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence, animate } from 'motion/react';
 
 import { useAuthStore } from '../../store/auth.store'
 import { useChatStore } from '../../store/chat.store';
@@ -13,6 +14,7 @@ import { formatChatDate, formatTime, timeSince } from '../../lib/util/timeFormat
 import PrimaryButton from '../PrimaryButton';
 import SecondaryButton from '../SecondaryButton'
 import TertiaryButton from '../TertiaryButton';
+
 
 /* 
  * Message type announcement. 
@@ -242,6 +244,7 @@ const GroupCard = ({message, isMine, displaySender, sender, isSeen, displayMenu,
                 </div>
             }
             {/* menu options */}
+            <AnimatePresence>
             {
                 displayMenu && 
                 <OptionsMenu 
@@ -259,6 +262,7 @@ const GroupCard = ({message, isMine, displaySender, sender, isSeen, displayMenu,
                     inputRef={inputRef}
                 />
             }
+            </AnimatePresence>
         </div>
     )
 }
@@ -303,8 +307,7 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, displayMenu, se
             
             // measure menu height
             const menuHeight = menuRef.current.offsetHeight ;
-            console.log(menuHeight)
-        
+          
             // decide whether the dropdown should open upwards or downwards:
             // - if there's enough space above, place it on top.
             // - otherwise, default to placing it below.
@@ -334,8 +337,6 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, displayMenu, se
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [displayMenu]);
 
-
-    
     return (
         <div className='w-full relative' ref={containerRef}>
             <div 
@@ -389,6 +390,7 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, displayMenu, se
                 </div>
             }
             {/* options menu */}
+            <AnimatePresence>
             {
                 displayMenu && 
                 <OptionsMenu 
@@ -405,6 +407,7 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, displayMenu, se
                     inputRef={inputRef}   
                 />
             }
+            </AnimatePresence>
         </div>
     )
 }
@@ -521,6 +524,22 @@ const MessageFooter = ({seenBy, seenByOther, myLastMessage, displayDetails}) => 
 */
 const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard = false, onClose, setEdit, setText, setReplyTo, setDeleteModal, inputRef}, ref) => {
 
+    // animation varaiants
+    const variants = {
+        initial: (position) => ({
+            opacity: 0,
+            y: position == 'top' ? 10 : -10
+        }),
+        animate: {
+            opacity: 1,
+            y: 0
+        },
+        exit: (position) => ({
+            opacity: 0,
+            y: position == 'top' ? 10 : -10
+        })
+    }
+
     // handle select reply to message
     const handleReplyTo = () => {
         setEdit(null);
@@ -567,11 +586,17 @@ const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard 
         inputRef.current.focus();
         onClose();
     }
-
+    
     return (
-        <div
+        <motion.div
             ref={ref}
             className={`border-1 drop-shadow-lg rounded-lg text-sm lg:text-normal py-2 px-1 flex flex-col gap-2  w-[250px] absolute z-10 ${isMine ? 'right-1/4 lg:right-1/2' : 'left-1/4 lg:left-1/2'} ${position === 'top' ? 'bottom-full mb-2' : 'top-1/2'} bg-light-200 border-light-txt2 text-light-txt dark:bg-dark-200 dark:border-dark-txt2 dark:text-dark-txt`}
+            variants={variants}
+            custom={position}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.2, ease: 'easeOut' }}
         >
             {/* reply to option */}
             <button  
@@ -629,7 +654,7 @@ const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard 
                 </button>
                 )
             }
-        </div>
+        </motion.div>
     )
 })
 
@@ -656,7 +681,7 @@ const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard 
  * - scrollToMessage: passed down to Bubble
  * - onDelete: callback function to update messages and chat after deleting the message 
 */
-const MessageBubble = ({message, displayDay, displaySender, myLastMessage, setReplyTo, setEdit, setText, inputRef, scrollToMessage, onDeleteMessage}) => {
+const MessageBubble = ({message, displayDay, displaySender, myLastMessage, isHighlighted, setReplyTo, setEdit, setText, inputRef, scrollToMessage, onDeleteMessage}) => {
   const { authUser } = useAuthStore();
   const { getSeenBy, messages, updateMessages } = useChatStore();
 
@@ -707,7 +732,7 @@ const MessageBubble = ({message, displayDay, displaySender, myLastMessage, setRe
             )
         }
         {/* message container */}
-        <div className={`w-full px-4 py-1 flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+        <div className={`w-full px-4 py-1 flex transition-colors ease-in-out ${isMine ? 'justify-end' : 'justify-start'} ${isHighlighted && (message.groupInvite ? 'bg-light-300 dark:bg-dark-300' : 'bg-light-200 dark:bg-dark-200')}`}>
             {/* display message based on it's type */}
             {
                 // announcement
@@ -782,14 +807,23 @@ const MessageBubble = ({message, displayDay, displaySender, myLastMessage, setRe
             }
         </div>
         {/* delete confirmation modal */}
+        <AnimatePresence>
         {
             deleteModal && (
-                <div onClick={() => setDeleteModal(false)} 
+                <motion.div 
+                    onClick={() => setDeleteModal(false)} 
                     className='bg-[#00000066] dark:bg-[#ffffff33] fixed inset-0 z-50 flex items-center justify-center'
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                 >
-                    <div 
+                    <motion.div 
                         onClick={(e) => e.stopPropagation()} 
                         className='h-fit max-h-[40%] w-[50%] min-w-[350px] rounded-2xl flex flex-col items-center justify-center p-10 gap-4 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.9, opacity: 0 }}
+                        transition={{ duration: 0.2}}
                     >
                         {/* title and text */}
                         <h3 className='text-danger lg:text-xl font-semibold flex items-center gap-2'>
@@ -817,10 +851,11 @@ const MessageBubble = ({message, displayDay, displaySender, myLastMessage, setRe
                                 onClick={handleDeleteMessage}
                             />
                         </div>
-                    </div>
-                </div>
+                    </motion.div>
+                </motion.div>
             )
         }
+        </AnimatePresence>
     </>
   )
 }

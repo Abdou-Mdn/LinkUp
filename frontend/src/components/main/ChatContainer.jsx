@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'motion/react';
 
 import { useAuthStore } from '../../store/auth.store';
 import { useChatStore } from '../../store/chat.store';
@@ -49,6 +50,7 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
   const [replyTo, setReplyTo] = useState(null); // reply target message
   const [edit, setEdit] = useState(null); // message being edited
   const [scrollDown, setScrollDown] = useState(false); // "back to bottom" button visibility
+  const [highlightedID, setHighlightedID] = useState(null); // state to manage the highlighted message
 
   // necessary references
   const textInputRef = useRef(null); // ref to chat input
@@ -83,7 +85,12 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
     const element = messagesRefs.current[messageID];
     // if message is loaded then scroll to message and exit early
     if (element) {
-      return element.scrollIntoView({ behavior: "smooth"});
+      element.scrollIntoView({ behavior: "smooth"});
+      setHighlightedID(messageID);
+      setTimeout(() => {
+        setHighlightedID(null);
+      }, 2000);
+      return;
     }
 
     // if not loaded yet, we load messages until we reach the message 
@@ -97,7 +104,7 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
     // recursive call after waiting 0.5s 
     setTimeout(() => {
       scrollToMessage(messageID, retries - 1);
-    }, 500);
+    }, 1000);
   };
 
 
@@ -195,39 +202,43 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
               </div> :
               /* messages list */ 
               messages.map((msg, idx) => {
-              const prevMsg = messages[idx - 1];
-              const nextMsg = messages[idx + 1];
+                const prevMsg = messages[idx - 1];
+                const nextMsg = messages[idx + 1];
 
-              // display date if messages are from different days (grouping messages by day)
-              const displayDay = !prevMsg || isDifferentDay(prevMsg.createdAt, msg.createdAt);
-              // display sender image only at the last message in a succession
-              const displaySender = !nextMsg || nextMsg.sender.userID !== msg.sender.userID;
+                // display date if messages are from different days (grouping messages by day)
+                const displayDay = !prevMsg || isDifferentDay(prevMsg.createdAt, msg.createdAt);
+                // display sender image only at the last message in a succession
+                const displaySender = !nextMsg || nextMsg.sender.userID !== msg.sender.userID;
 
-              // check if current message is my last message (to display status "delivered" or "seen")
-              const isMyLastMessage = myLastMessage ? msg.messageID == myLastMessage.messageID : false;
-
-              return (
-                <div
-                  key={msg.messageID}
-                  id={`msg-${msg.messageID}`}
-                  ref={el => messagesRefs.current[msg.messageID] = el}
-                >
-                  <MessageBubble    
-                    message={msg} 
-                    otherUser={otherUser}
-                    displayDay={displayDay} 
-                    displaySender={displaySender} 
-                    myLastMessage={isMyLastMessage}
-                    setReplyTo={setReplyTo}
-                    setEdit={setEdit}
-                    setText={setText}
-                    inputRef={textInputRef}
-                    scrollToMessage={scrollToMessage}
-                    onDeleteMessage={onDeleteMessage}
-                  />
-                </div>
-              )
-            })
+                // check if current message is my last message (to display status "delivered" or "seen")
+                const isMyLastMessage = myLastMessage ? msg.messageID == myLastMessage.messageID : false;
+                
+                // check if message is highlighted
+                const isHighlighted = highlightedID === msg.messageID;
+                
+                return (
+                  <div
+                    key={msg.messageID}
+                    id={`msg-${msg.messageID}`}
+                    ref={el => messagesRefs.current[msg.messageID] = el}
+                  >
+                    <MessageBubble    
+                      message={msg} 
+                      otherUser={otherUser}
+                      displayDay={displayDay} 
+                      displaySender={displaySender} 
+                      myLastMessage={isMyLastMessage}
+                      isHighlighted={isHighlighted}
+                      setReplyTo={setReplyTo}
+                      setEdit={setEdit}
+                      setText={setText}
+                      inputRef={textInputRef}
+                      scrollToMessage={scrollToMessage}
+                      onDeleteMessage={onDeleteMessage}
+                    />
+                  </div>
+                )
+              })
             }
             {/* sentinal div for scrolling to the bottom */}
             <div ref={bottomRef}></div>
@@ -235,12 +246,21 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
         }
       </div>
       {/* back to bottom button */}
-      { scrollDown && <button title='Back to bottom'
-        className={`p-2 rounded-full cursor-pointer transition-all absolute ${(edit || replyTo) ? 'bottom-36' : 'bottom-24'} right-1/2 z-10 border-1 bg-light-300 dark:bg-dark-300 border-light-txt2 dark:border-dark-txt2 text-light-txt2 dark:text-dark-txt2 hover:border-primary hover:bg-primary hover:text-inverted`}
-        onClick={() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }}  
-      >
-        <ArrowDown className='size-6' />
-      </button>}
+      <AnimatePresence>
+      { scrollDown && 
+        <motion.button 
+          title='Back to bottom'
+          className={`p-2 rounded-full cursor-pointer transition-colors absolute ${(edit || replyTo) ? 'bottom-36' : 'bottom-24'} right-1/2 z-10 border-1 bg-light-300 dark:bg-dark-300 border-light-txt2 dark:border-dark-txt2 text-light-txt2 dark:text-dark-txt2 hover:border-primary hover:bg-primary hover:text-inverted`}
+          onClick={() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }}  
+          initial={{ opacity: 0, y: 50, }}
+          animate={{ opacity: 1, y: 0, }}
+          exit={{ opacity: 0, y: 50, }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+        >
+          <ChevronDown className='size-6' />
+        </motion.button>
+      }
+      </AnimatePresence>
       {/* chat input or deleted account notice */}
       {
         // if chat is private and user is deleted then display notice

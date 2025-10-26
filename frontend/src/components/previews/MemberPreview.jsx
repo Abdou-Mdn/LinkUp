@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { BadgeCheck, BadgePlus, BadgeX, TriangleAlert, UserCheck, UserX } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { AnimatePresence } from 'motion/react'
 
 import { useAuthStore } from '../../store/auth.store'
 
@@ -11,6 +12,7 @@ import { formatDateWithSuffix } from '../../lib/util/timeFormat'
 import PrimaryButton from '../PrimaryButton'
 import SecondaryButton from '../SecondaryButton'
 import TertiaryButton from '../TertiaryButton'
+import AnimatedModal from '../AnimatedModal'
 
 
 /* 
@@ -240,16 +242,14 @@ const MemberPreview = ({member, groupID = null, isFriend = false, isAdmin = fals
             }
         </div>
         {/* member removal confirmation button */}
+        <AnimatePresence>
         {
             removeModal && (
-                <div onClick={() => setRemoveModal(false)} 
-                    className='bg-[#00000066] dark:bg-[#ffffff33] fixed inset-0 z-50 flex items-center justify-center'
+                <AnimatedModal 
+                    onClose={() => setRemoveModal(false)}
+                    className='h-fit max-h-[40%] w-[50%] min-w-[350px] rounded-2xl flex flex-col items-center justify-center p-10 gap-4 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'
                 >
-                    <div 
-                        onClick={(e) => e.stopPropagation()} 
-                        className='h-fit max-h-[40%] w-[50%] min-w-[350px] rounded-2xl flex flex-col items-center justify-center p-10 gap-4 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'
-                    >
-                        {/* warning title and text */}
+                    {/* warning title and text */}
                         <h3 className='text-danger lg:text-xl font-semibold flex items-center gap-2'>
                             <TriangleAlert className='size-5' />
                             <span> Confirm Member Removal</span>
@@ -282,10 +282,10 @@ const MemberPreview = ({member, groupID = null, isFriend = false, isAdmin = fals
                                 onClick={handleRemove}
                             />
                         </div>
-                    </div>
-                </div>
+                </AnimatedModal>
             )
         }
+        </AnimatePresence>
     </>
   )
 }

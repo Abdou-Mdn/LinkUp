@@ -2,6 +2,7 @@ import React, { forwardRef, useEffect, useRef, useState } from 'react'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
 import { CircleCheck, FileImage, Image, Laugh, Mail, MessageSquareQuote, Send, SquarePen, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 import { useThemeStore } from '../store/theme.store'
 import { useChatStore } from '../store/chat.store';
@@ -172,7 +173,7 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
 
 
   return (
-    <div className={`px-3 pb-3 mt-2 w-full relative`}>
+    <div className={`px-3 pb-3 mt-2 w-full relative z-20`}>
         {/* uploaded image preview */}
         {imgPreview && (
             <div className='mb-3 flex items-center gap-2 absolute -top-25 z-10'>
@@ -192,9 +193,16 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
             </div>
         )}
         {/* replyTo message informations */}
+        <AnimatePresence>
         {
             replyTo && (
-                <div className='w-full border-t-1 border-light-txt2 dark:border-dark-txt2 flex items-center justify-between gap-2 py-1 px-2 lg:px-8'>
+                <motion.div 
+                    className='w-full border-t-1 border-light-txt2 dark:border-dark-txt2 flex items-center justify-between gap-2 py-1 px-2 lg:px-8'
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 15 }}
+                    transition={{ duration: 0.15, ease: 'easeInOut' }}
+                >
                     <div className='flex items-center gap-2 lg:gap-4 max-w-[85%]'>
                         {/* icon based on message type (groupInvite/ photo/ text) */}
                         { replyTo.groupInvite ? <Mail className='size-6 lg:size-8' /> : (replyTo.image && !replyTo.text) ? <FileImage className='size-6 lg:size-8' /> : <MessageSquareQuote className='size-6 lg:size-8' />}
@@ -216,13 +224,21 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                     >
                         <X className='size-6' />
                     </button>
-                </div>
+                </motion.div>
             )
         }
+        </AnimatePresence>
         {/* edit message */}
+        <AnimatePresence>
         {
             edit && (
-                <div className='w-full border-t-1 border-light-txt2 dark:border-dark-txt2 flex items-center justify-between gap-2 py-1 px-2 lg:px-8'>
+                <motion.div 
+                    className='w-full border-t-1 border-light-txt2 dark:border-dark-txt2 flex items-center justify-between gap-2 py-1 px-2 lg:px-8'
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 15 }}
+                    transition={{ duration: 0.15, ease: 'easeInOut' }}
+                >
                     {/* "edit:" title */}
                     <div className='flex items-center gap-2 lg:gap-4 max-w-[85%] ml-4'>
                         <SquarePen className='size-6 lg:size-8' />
@@ -235,9 +251,10 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                     >
                         <X className='size-6' />
                     </button>
-                </div>
+                </motion.div>
             )
         }
+        </AnimatePresence>
         {/* input & buttons form */}
         <form 
             className='flex items-center justify-center gap-2'
@@ -292,8 +309,15 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                    }
                 </button>
                 {/* emoji picker */}
+                <AnimatePresence>
                 { showPicker && (
-                    <div className='flex items-center justify-center absolute  -top-[450px] lg:-top-[440px] -right-[150%] lg:right-0 shadow-2xl rounded-lg'>
+                    <motion.div 
+                        className='flex items-center justify-center absolute  -top-[450px] lg:-top-[440px] -right-[150%] lg:right-0 shadow-2xl rounded-lg'
+                        initial={{ y: 15, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 15, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: "easeInOut" }}    
+                    >
                         <Picker 
                             onEmojiSelect={handleEmojiSelect} 
                             data={data}
@@ -302,8 +326,9 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                             navPosition="bottom"
                             theme={theme}
                         />
-                    </div> 
+                    </motion.div> 
                 )}
+                </AnimatePresence>
             </div>
             {/* submit buttons */}
             { edit ? 

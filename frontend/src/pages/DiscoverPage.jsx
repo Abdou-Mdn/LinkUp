@@ -107,9 +107,9 @@ const Aside = ({
               Start typing to search 
             </div> 
           ) : (
-            <div className='flex-1 w-full flex flex-col overflow-y-auto scrollbar'>
+            <div className='flex-1 w-full flex flex-col'>
                 {/* users list */}
-                <div className={`flex-col px-2 ${view == "groups" ? 'hidden' : 'flex'}`}>
+                <div className={`flex-col px-2 transition-all ease-in-out overflow-hidden ${view == "groups" ? 'h-0 opacity-0' : view === "users" ? 'h-full' : 'h-1/2'}`}>
                   <div className='flex items-center justify-between w-full'>
                     {/* title */}
                     <span className='text-lg font-outfit font-semibold' >Users</span>
@@ -124,7 +124,7 @@ const Aside = ({
                   {
                     // display skeletons while loading
                     loading ? (
-                      Array.from({ length: 4 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
+                      Array.from({ length: 3 }).map((_, i) => <ProfilePreviewSkeleton key={i} />)
                     ) : users.length == 0 ? ( 
                       // users list is empty
                       <div className='flex-1 py-10 flex flex-col items-center gap-2'> 
@@ -132,11 +132,11 @@ const Aside = ({
                         No users found 
                       </div> 
                     ) : 
-                    <ul>
+                    <ul className='overflow-y-auto scrollbar'>
                       {
                         // display only 4 users, and the whole list if expanded
                         view == "both" ? 
-                        users.slice(0,4).map(user => <ProfilePreview key={user.userID} user={user} onSelect={selectUser} isSelected={selectedUser?.userID === user.userID} />) :
+                        users.slice(0,3).map(user => <ProfilePreview key={user.userID} user={user} onSelect={selectUser} isSelected={selectedUser?.userID === user.userID} />) :
                         users.map(user => <ProfilePreview key={user.userID} user={user} onSelect={selectUser} isSelected={selectedUser?.userID === user.userID} />) 
                       }
                       {
@@ -151,7 +151,7 @@ const Aside = ({
                   }
                 </div>
                 {/* groups list */}
-                <div className={`mt-4 flex-col px-2 ${view == "users" ? 'hidden' : 'flex'}`}>
+                <div className={`flex-col px-2 transition-all ease-in-out overflow-hidden ${view == "users" ? 'h-0 opacity-0' : view === "groups" ? 'h-full' : 'h-1/2'}`}>
                   <div className='flex items-center justify-between w-full'>
                     {/* title */}
                     <span className='text-lg font-outfit font-semibold' >Groups</span>
@@ -174,11 +174,11 @@ const Aside = ({
                         No groups found 
                       </div> 
                     ) : 
-                    <ul>
+                    <ul className='overflow-y-auto scrollbar'>
                       {
                         // display only 4 groups, full list if expanded
                         view == "both" ? 
-                        groups.slice(0,4).map(group => <GroupPreview key={group.groupID} group={group} onSelect={selectGroup} isSelected={selectedGroup?.groupID === group.groupID} />) :
+                        groups.slice(0,3).map(group => <GroupPreview key={group.groupID} group={group} onSelect={selectGroup} isSelected={selectedGroup?.groupID === group.groupID} />) :
                         groups.map(group => <GroupPreview key={group.groupID} group={group} onSelect={selectGroup} isSelected={selectedGroup?.groupID === group.groupID} />) 
                       }
                       {

@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
 import { Link } from 'react-router-dom';
+import { AnimatePresence } from 'motion/react';
 
 import { useAuthStore } from '../store/auth.store';
 
@@ -151,11 +152,12 @@ function LogInPage() {
           Sign in to continue your conversations and catch up with your messages.
         </span>
       </div>
-
       {/* forgot password modal */}
+      <AnimatePresence>
       {
         displayModal && <ForgotPasswordModal onClose={() => setDisplayModal(false)} darkTheme={false} />
       }
+      </AnimatePresence>
     </div>
   )
 }

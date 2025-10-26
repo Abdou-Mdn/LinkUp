@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { TriangleAlert } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
 
 import { deleteAccount } from '../../lib/api/user.api';
 
@@ -72,9 +73,11 @@ const DeleteAccount = () => {
             </div>
         </form>
         {/* forgot password modal */}
+        <AnimatePresence>
         {
             displayModal && <ForgotPasswordModal onClose={() => setDisplayModal(false)} />
         }
+        </AnimatePresence>
     </>
   )
 }

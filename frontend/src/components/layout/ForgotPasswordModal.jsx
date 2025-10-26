@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'motion/react';
 
 import { useAuthStore } from '../../store/auth.store';
 
@@ -7,6 +8,8 @@ import { resetPassword, sendCode, verifyCode, verifyEmail } from '../../lib/api/
 import PrimaryButton from '../PrimaryButton';
 import SecondaryButton from '../SecondaryButton'
 import TextInput from '../TextInput';
+import AnimatedModal from '../AnimatedModal';
+
 
 /* 
  * OtpInput Component
@@ -134,6 +137,23 @@ const ForgotPasswordModal = ({onClose, darkTheme = true}) => {
         confirmPassword: "",
     });
 
+    // states for framer motion animation
+    const [direction, setDirection] = useState(0)
+    const sectionVariants = {
+        initial: (direction) => ({
+            x: direction > 0 ? 500 : direction < 0 ? -500 : 0,
+            opacity: direction === 0 ? 1 : 0,
+        }),
+        animate: {
+            x: 0,
+            opacity: 1,
+        },
+        exit: (direction) => ({
+            x: direction > 0 ? -500 : direction < 0 ? 500 : 0,
+            opacity: 0
+        })
+    }
+
     // ** step 1: verify email & send OTP
     const sendOTPCode = async (event) => {
         event.preventDefault()
@@ -156,6 +176,7 @@ const ForgotPasswordModal = ({onClose, darkTheme = true}) => {
 
                 if(result?.emailID) {
                     // if OTP is sent successfully go to next section
+                    setDirection(1);
                     setActiveSection("otp");
                 }
             } else if (res === "Email not registered") {
@@ -179,6 +200,7 @@ const ForgotPasswordModal = ({onClose, darkTheme = true}) => {
             if(res?.resetToken) {
                 // if code is correct save resetToken and move to next section
                 setToken(res.resetToken);
+                setDirection(1);
                 setActiveSection("password")
             }
 
@@ -241,6 +263,217 @@ const ForgotPasswordModal = ({onClose, darkTheme = true}) => {
     }
 
   return (
+    <AnimatedModal
+        onClose={onClose}
+        darkTheme={darkTheme}
+        className={`h-fit w-[95%] lg:w-[50%] min-w-[350px] rounded-2xl flex items-center justify-center p-8 bg-light-100 text-light-txt ${darkTheme && 'dark:bg-dark-100 dark:text-dark-txt'}`}
+    >
+        <div className='size-full overflow-hidden'>
+        <AnimatePresence initial={false} custom={direction} mode='wait'>
+            {/* ** step 1: email input */}
+            {
+                activeSection == "email" && (
+                    <motion.form 
+                        key="email"
+                        onSubmit={sendOTPCode}
+                        className='size-full flex flex-col justify-center items-center gap-3'
+                        custom={direction}
+                        variants={sectionVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={{ 
+                            x: { type: 'tween', ease: 'linear', duration: 0.2 },
+                            opacity: { duration: 0.2, ease: 'linear' }
+                        }}
+                    >
+                        {/* title and text */}
+                        <div className='text-center px-8 flex flex-col gap-3'>
+                            <h2 className='text-lg lg:text-xl font-bold font-outfit'>Forgot Your Password ?</h2>
+                            <p className={`text-sm lg:text-normal text-light-txt2 ${darkTheme && 'dark:text-dark-txt2'}`}>Please enter your email for the verification process. We will send 6 digits OTP code to your email</p>
+                        </div>
+                        {/* input */}
+                        <TextInput
+                            label='Your Email'
+                            placeholder='you@example.com'
+                            isPassword={false}
+                            value={email}
+                            onChange={(e) => {
+                                setEmail(e.target.value)
+                                if (emailErr) setEmailErr("");
+                            }}
+                            error={emailErr}
+                            darkTheme={darkTheme}
+                        />
+                        {/* buttons */}
+                        <div className='flex items-center justify-center gap-4 lg:gap-8'>
+                            {/* cancel button (closes the modal) */}
+                            <SecondaryButton 
+                                type='button'
+                                text='Cancel'  
+                                className='py-2 px-10 text-sm lg:text-normal' 
+                                onClick={onClose}
+                                disabled={loading}
+                            />
+                            {/* submit button */}
+                            <PrimaryButton 
+                                type='submit'
+                                text='Send Code' 
+                                className={`text-sm lg:text-normal py-2 ${loading ? 'px-12' : 'px-8'}`} 
+                                onClick={sendOTPCode}
+                                loading={loading}
+                            />
+                        </div>
+                    </motion.form>
+                )
+            }
+            {/* ** step 2: OTP input */}
+            {
+                activeSection == "otp" && (
+                    <motion.div 
+                        key="otp"
+                        className='size-full flex flex-col justify-center items-center gap-3'
+                        custom={direction}
+                        variants={sectionVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={{ 
+                            x: { type: 'tween', ease: 'linear', duration: 0.2 },
+                            opacity: { duration: 0.2, ease: 'linear' }
+                        }}
+                    >
+                        {/* title and text */}
+                        <div className='text-center px-8 flex flex-col gap-3'>
+                            <h2 className='text-lg lg:text-xl font-bold font-outfit'>OTP Code Verification</h2>
+                            <p className={`text-sm lg:text-normal text-light-txt2 ${darkTheme && 'dark:text-dark-txt2'}`}>Please enter the 6 digits otp code that you received on your email</p>
+                        </div>
+                        {/* input */}
+                        <div className='lg:w-[60%] min-w-[300px] p-3 flex flex-col items-center gap-4'>
+                            <OtpInput
+                                otp={otp}
+                                setOtp={setOtp}
+                                length={length} 
+                                onComplete={verifyOTPCode} 
+                                darkTheme={darkTheme} 
+                            />
+                            {/* resend OTP text */}
+                            <div className='flex items-center gap-2'>
+                                <span className='text-sm'>Didn't receive any code?</span>
+                                <button  
+                                    onClick={sendOTPCode}
+                                    type='button' 
+                                    className='text-sm cursor-pointer text-primary hover:text-secondary hover:underline'
+                                >
+                                    Try again
+                                </button>
+                            </div>
+                        </div>
+                        {/* buttons */}
+                        <div className='flex items-center justify-center gap-8'>
+                            {/* cancel button (closes the modal) */}
+                            <SecondaryButton
+                                type='button' 
+                                text='Cancel' 
+                                className='py-2 px-10 text-sm lg:text-normal' 
+                                onClick={onClose}
+                                disabled={loading}
+                            />
+                            {/* submit button */}
+                            <PrimaryButton 
+                                type='submit'
+                                text='Continue' 
+                                className={`text-sm lg:text-normal py-2 ${loading ? 'px-14' : 'px-10'}`} 
+                                onClick={() => verifyOTPCode(otp.join(""))}
+                                loading={loading}
+                                disabled={!otp.every((digit) => digit !== "")}
+                            />
+                        </div>
+                    </motion.div>
+                )
+            }
+            {/* ** step 3: password inputs */}
+            {
+                activeSection == "password" && (
+                    <motion.form 
+                        key="password"
+                        onSubmit={setNewPassword}
+                        className='size-full flex flex-col justify-center items-center gap-2'
+                        custom={direction}
+                        variants={sectionVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={{ 
+                            x: { type: 'tween', ease: 'linear', duration: 0.2 },
+                            opacity: { duration: 0.2, ease: 'linear' }
+                        }}
+                    >
+                        {/* title and text */}
+                        <div className='text-center px-8 flex flex-col gap-3'>
+                            <h2 className='text-lg lg:text-xl font-bold font-outfit'>Update Your Password</h2>
+                            <p className={`text-sm lg:text-normal text-light-txt2 ${darkTheme && 'dark:text-dark-txt2'}`}>Please enter a new password. Make sure your new password is strong and unique. Avoid reusing old passwords</p>
+                        </div>
+
+                        {/* new password input */}
+                        <TextInput
+                            label='New Password'
+                            placeholder='••••••••'
+                            isPassword={true}
+                            value={formData.newPassword}
+                            onChange={(e) => {
+                                setFormData({...formData, newPassword: e.target.value})
+                                if (formErrors.newPassword) setFormErrors({ ...formErrors, newPassword: ""});
+                            }}
+                            error={formErrors.newPassword}
+                            darkTheme={darkTheme}
+                        />
+                        
+                        {/* confirm password input */}
+                        <TextInput
+                            label='Confirm New Password'
+                            placeholder='••••••••'
+                            isPassword={true}
+                            value={formData.confirmPassword}
+                            onChange={(e) => {
+                                setFormData({...formData, confirmPassword: e.target.value})
+                                if (formErrors.confirmPassword) setFormErrors({ ...formErrors, confirmPassword: ""});
+                            }}
+                            error={formErrors.confirmPassword}
+                            darkTheme={darkTheme}
+                        />
+                        {/* buttons */}
+                        <div className='flex items-center justify-center gap-8'>
+                            {/* cancel button (closes the modal) */}
+                            <SecondaryButton 
+                                type='button'
+                                text='Cancel' 
+                                className='py-2 px-10 text-sm lg:text-normal' 
+                                onClick={onClose}
+                                disabled={loading}
+                            />
+                            {/* submit button */}
+                            <PrimaryButton 
+                                type='submit'
+                                text='Continue' 
+                                className={`text-sm lg:text-normal py-2 ${loading ? 'px-14' : 'px-10'}`} 
+                                onClick={setNewPassword}
+                                loading={loading}
+                            />
+                        </div>
+                    </motion.form>
+                )
+            }
+        </AnimatePresence>
+        </div>
+    </AnimatedModal>
+  ) 
+}
+
+export default ForgotPasswordModal
+
+
+const ikhti = () => (
     <div 
         onClick={onClose} 
         className={`fixed inset-0 z-50 flex items-center justify-center bg-[#00000066] ${darkTheme && 'dark:bg-[#ffffff33]'}`}
@@ -411,6 +644,3 @@ const ForgotPasswordModal = ({onClose, darkTheme = true}) => {
         </div>
     </div>
   )
-}
-
-export default ForgotPasswordModal

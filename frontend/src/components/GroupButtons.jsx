@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { MessageSquareMore, X, PenLine, LogOut, CirclePlus, TriangleAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AnimatePresence } from 'motion/react';
 
 import { useAuthStore } from '../store/auth.store'
 import { useChatStore } from '../store/chat.store';
@@ -12,6 +13,7 @@ import { formatDateWithSuffix } from '../lib/util/timeFormat';
 import PrimaryButton from './PrimaryButton';
 import SecondaryButton from './SecondaryButton';
 import TertiaryButton from './TertiaryButton'
+import AnimatedModal from './AnimatedModal';
 
 /* 
  * GroupButtons Component
@@ -203,49 +205,47 @@ const GroupButtons = ({ group, openEdit, onJoin, onCancelRequest, onLeave }) => 
             </div>
         </div>
         {/* leave group confirmation modal */}
+        <AnimatePresence>
         {
             leaveModal && (
-                <div onClick={() => setLeaveModal(false)} 
-                    className='bg-[#00000066] dark:bg-[#ffffff33] fixed inset-0 z-50 flex items-center justify-center'
-                >
-                    <div 
-                        onClick={(e) => e.stopPropagation()} 
-                        className='h-fit max-h-[40%] w-[50%] min-w-[350px] rounded-2xl flex flex-col items-center justify-center p-10 gap-4 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'
-                    >
-                        <h3 className='text-danger lg:text-xl font-semibold flex items-center gap-2'>
-                            <TriangleAlert className='size-5' />
-                            <span> Confirm Leaving</span>
-                            <TriangleAlert className='size-5' />
-                        </h3>
-                        <p className='text-sm text-light-txt dark:text-dark-txt text-center flex flex-col items-center'>
-                            <span>
-                                You are about to leave <strong>{group.name}</strong>.
-                            </span>
-                            <span>
-                                You will no longer be able to participate in the group chat unless added again.
-                            </span>
-                        </p>
-                            <div className='mt-2 flex items-center gap-4 w-[80%] min-w-min-w-[300px]'>
-                            <TertiaryButton
-                                text="Cancel"
-                                className='p-2 flex-1 text-sm lg:text-[16px]'
-                                type='button'
-                                disabled={loading}
-                                onClick={() => setLeaveModal(false)}
-                            />
-                            <SecondaryButton
-                                text="Leave"
-                                className='p-2 flex-1 text-sm lg:text-[16px]'
-                                type='button'
-                                isColored={true}
-                                disabled={loading}
-                                onClick={leave}
-                            />
-                        </div>
+                <AnimatedModal 
+                    onClose={() => setLeaveModal(false)}
+                    className='h-fit max-h-[40%] w-[50%] min-w-[350px] rounded-2xl flex flex-col items-center justify-center p-10 gap-4 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'
+                >   
+                    <h3 className='text-danger lg:text-xl font-semibold flex items-center gap-2'>
+                        <TriangleAlert className='size-5' />
+                        <span> Confirm Leaving</span>
+                        <TriangleAlert className='size-5' />
+                    </h3>
+                    <p className='text-sm text-light-txt dark:text-dark-txt text-center flex flex-col items-center'>
+                        <span>
+                            You are about to leave <strong>{group.name}</strong>.
+                        </span>
+                        <span>
+                            You will no longer be able to participate in the group chat unless added again.
+                        </span>
+                    </p>
+                        <div className='mt-2 flex items-center gap-4 w-[80%] min-w-min-w-[300px]'>
+                        <TertiaryButton
+                            text="Cancel"
+                            className='p-2 flex-1 text-sm lg:text-[16px]'
+                            type='button'
+                            disabled={loading}
+                            onClick={() => setLeaveModal(false)}
+                        />
+                        <SecondaryButton
+                            text="Leave"
+                            className='p-2 flex-1 text-sm lg:text-[16px]'
+                            type='button'
+                            isColored={true}
+                            disabled={loading}
+                            onClick={leave}
+                        />
                     </div>
-                </div>
+                </AnimatedModal>
             )
         }
+        </AnimatePresence>
     </>
   )
 }

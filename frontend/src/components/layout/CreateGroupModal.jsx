@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Check, Ghost } from 'lucide-react';
+import { motion, AnimatePresence } from "motion/react"
 
 import { getFriends } from '../../lib/api/user.api';
 import { createGroup } from '../../lib/api/group.api';
@@ -10,6 +11,7 @@ import TertiaryButton from '../TertiaryButton';
 import ProfilePreviewSkeleton from '../skeleton/ProfilePreviewSkeleton';
 import ProfilePreview from '../previews/ProfilePreview';
 import TextInput from '../TextInput';
+import AnimatedModal from '../AnimatedModal';
 
 
 /* 
@@ -47,6 +49,23 @@ const CreateGroupModal = ({onClose, onCreate}) => {
     const [name, setName] = useState("");
     const [errors, setErrors] = useState({ name: "", members: ""});
     const [creating, setCreating] = useState(false);
+
+    // states for framer motion animation
+    const [direction, setDirection] = useState(0)
+    const sectionVariants = {
+        initial: (direction) => ({
+            x: direction > 0 ? 500 : direction < 0 ? -500 : 0,
+            opacity: direction === 0 ? 1 : 0,
+        }),
+        animate: {
+            x: 0,
+            opacity: 1,
+        },
+        exit: (direction) => ({
+            x: direction > 0 ? -500 : direction < 0 ? 500 : 0,
+            opacity: 0
+        })
+    }
 
     // function to fetch the friends list with pagination
     const fetchFriends = async (reset = false) => {
@@ -140,7 +159,14 @@ const CreateGroupModal = ({onClose, onCreate}) => {
             return;
         }
         // move to members section
+        setDirection(1);
         setActiveSection("members");
+    }
+
+    // go back to the previous section
+    const goBack = () => {
+        setDirection(-1);
+        setActiveSection("name");
     }
 
     // handle create group
@@ -177,19 +203,28 @@ const CreateGroupModal = ({onClose, onCreate}) => {
 
 
   return (
-    <div onClick={onClose} 
-        className='bg-[#00000066] dark:bg-[#ffffff33] fixed inset-0 z-50 flex items-center justify-center'
+    <AnimatedModal 
+        onClose={onClose}
+        className={`${activeSection == "name" ? 'h-[60%]' : 'h-[60%] lg:h-[80%]'} w-[95%] lg:w-[50%] min-w-[350px] rounded-2xl flex items-center justify-center p-8 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt`}
     >
-        <div 
-            onClick={(e) => e.stopPropagation()} 
-            className={`${activeSection == "name" ? 'h-fit' : 'h-[60%] lg:h-[80%]'} w-[95%] lg:w-[50%] min-w-[350px] rounded-2xl flex items-center justify-center p-8 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt`}
-        >
+        <div className='size-full overflow-hidden'>
+        <AnimatePresence initial={false} custom={direction} mode='wait'>
             {/* name section */}
             {
                 activeSection == "name" && (
-                    <form 
+                    <motion.form 
+                        key="name"
                         onSubmit={advance}
                         className='size-full flex flex-col justify-center items-center gap-8'
+                        custom={direction}
+                        variants={sectionVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={{ 
+                            x: { type: 'tween', ease: 'linear', duration: 0.2 },
+                            opacity: { duration: 0.2, ease: 'linear' }
+                        }}
                     >
                         {/* title and text */}
                         <div className='text-center'>
@@ -225,15 +260,25 @@ const CreateGroupModal = ({onClose, onCreate}) => {
                                 onClick={advance}
                             />
                         </div>
-                    </form>
+                    </motion.form>
                 )
             }
             {/* members section */}
             {
                 activeSection == "members" && (
-                    <form
+                    <motion.form
+                        key="members"
                         onSubmit={handleSubmit} 
                         className='size-full flex flex-col justify-center items-center gap-2'
+                        custom={direction}
+                        variants={sectionVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={{ 
+                            x: { type: 'tween', ease: 'linear', duration: 0.2 },
+                            opacity: { duration: 0.2, ease: 'linear' } 
+                        }}
                     >
                         {/* title and text */}
                         <div className='text-center'>
@@ -299,22 +344,24 @@ const CreateGroupModal = ({onClose, onCreate}) => {
                                 type='button'
                                 text="Back"
                                 className='py-2 px-8 text-sm lg:text-normal'
-                                onClick={() => setActiveSection("name")}
+                                onClick={goBack}
                                 disabled={creating}
                             />
                             {/* submit */}
                             <PrimaryButton 
                                 type='submit'
                                 text="Create"
-                                className={`text-sm lg:text-normal py-2 ${loading ? 'px-9' : 'px-6'}`}
-                                loading={loading}
+                                className={`text-sm lg:text-normal py-2 ${creating ? 'px-9' : 'px-6'}`}
+                                loading={creating}
+                                disabled={loading}
                             />
                         </div>
-                    </form>
+                    </motion.form>
                 )
             }
+        </AnimatePresence>
         </div>
-    </div>
+    </AnimatedModal>
   )
 }
 
