@@ -40,7 +40,10 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
   if(!selectedChat.isGroup && !loadingChat) {
     otherUser = selectedChat.participants.filter(p => p.userID !== authUser.userID)[0];
   } 
-  
+
+  // check if chat is private and disabled
+  const disabledChat = !selectedChat.isGroup && otherUser.isDeleted;
+
   // find my last message
   const myLastMessage = [...messages].reverse().find(m => m.sender.userID === authUser.userID);
 
@@ -218,7 +221,7 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
                 
                 return (
                   <div
-                    key={msg.messageID}
+                    key={msg.messageID ? msg.messageID : msg.tempID}
                     id={`msg-${msg.messageID}`}
                     ref={el => messagesRefs.current[msg.messageID] = el}
                   >
@@ -235,6 +238,7 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
                       inputRef={textInputRef}
                       scrollToMessage={scrollToMessage}
                       onDeleteMessage={onDeleteMessage}
+                      disabledChat={disabledChat}
                     />
                   </div>
                 )
@@ -264,7 +268,7 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
       {/* chat input or deleted account notice */}
       {
         // if chat is private and user is deleted then display notice
-        !selectedChat.isGroup && otherUser.isDeleted ? (
+        disabledChat ? (
           <div className='p-3 w-full flex flex-col justify-center items-center border-t-1 border-light-txt2 dark:border-dark-txt2'> 
             <span className='text-sm text-light-txt dark:text-dark-txt'>This account has been deleted</span>
             <span className='text-sm text-center text-light-txt2 dark:text-dark-txt2'>You can no longer send or receive messages in this conversation.</span>

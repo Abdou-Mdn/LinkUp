@@ -11,6 +11,7 @@ import { useAuthStore } from '../store/auth.store';
 import { editMessage, sendMessage } from '../lib/api/chat.api';
 
 import PrimaryButton from './PrimaryButton'
+import { createOptimisticMessage } from '../lib/util/messages';
 
 /* 
  * ChatInput Component
@@ -112,14 +113,34 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
 
     // handle send message
     const handleSendMessage = async () => {
-        if(loading) return;
-        setLoading(true);
         try {
             // get message receiver if it's private chat (receiverID will be used if chat is not created yet i.e. first message of the chat)
             let receiver = null;
             if(!chat.isGroup && !chat.chatID) {
                 receiver = chat.participants.filter(p => p.userID !== authUser.userID)[0];
             }
+
+            // create optimistic message
+            const optimisticMessage = createOptimisticMessage({
+                sender: authUser,
+                chatID: chat.chatID,
+                receiverID: receiver ? receiver.userID : null,
+                text,
+                image: imgPreview,
+                replyTo,
+            });
+
+            // append the optimistic message to the messages 
+            const newMessages = [...messages, optimisticMessage]
+            updateMessages(newMessages);
+
+            // clear states
+            setText("");
+            setImgPreview(null);
+            setReplyTo(null);
+            ref.current.focus();
+
+            // send to backend
             const res = await sendMessage({
                 chatID: chat.chatID,
                 receiverID: receiver ? receiver.userID : null,
@@ -128,21 +149,30 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                 replyTo: replyTo ? replyTo.messageID : null,
             });
 
+            
             if(res?.newMessage) {
-                const newMessages = [...messages, res.newMessage];
+                // Replace optimistic message with real one
+                const newMessages = useChatStore.getState().messages.map(msg =>
+                    msg.tempID === optimisticMessage.tempID ? res.newMessage : msg
+                )
                 updateMessages(newMessages);
+                // update the chat list
                 onSendMessage(chat.chatID, res.newMessage, res.updatedAt);
+            } else {
+                // mark message as failed if no valid response
+                const newMessages = useChatStore.getState().messages.map(msg =>
+                    msg.tempID === optimisticMessage.tempID ? { ...msg, status: "failed" } : msg
+                );
+                updateMessages(newMessages); 
             }
 
-            // clear states
-            setText("");
-            setImgPreview(null);
-            setReplyTo(null);
-            ref.current.focus();
         } catch (error) {
             console.log("error in sending message", error);
-        } finally {
-            setLoading(false)
+            // mark message as failed
+            const newMessages = useChatStore.getState().messages.map(msg =>
+                msg.tempID === optimisticMessage.tempID ? { ...msg, status: "failed" } : msg
+            );
+            updateMessages(newMessages);
         }
     }
 
@@ -349,7 +379,6 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                     leftIcon={<Send className='size-5 lg:size-6' />}
                     className='py-2 px-2 lg:py-3 lg:px-5 rounded-xl'
                     disabled={!text && !imgPreview}
-                    loading={loading}
                     onClick={handleSendMessage}
                 />
             }

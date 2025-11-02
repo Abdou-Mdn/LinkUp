@@ -1,5 +1,5 @@
 import React, { forwardRef, useEffect, useRef, useState } from 'react'
-import { Ban, CheckCheck, CirclePlus, ClipboardCopy, Download, Reply, SquarePen, Trash2, X } from 'lucide-react';
+import { Ban, CheckCheck, CircleAlert, CirclePlus, ClipboardCopy, Download, Reply, SendHorizonal, SquarePen, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence, animate } from 'motion/react';
 
@@ -82,7 +82,7 @@ const DeletedMessage = ({name, isMine, displaySender, sender, setDisplayMenu}) =
  * - setDisplayMenu: setter to toggle displayMenu state
  * - setDeleteModal, setEdit, setText, setReplyTo, inputRef: passed down to options menu
 */
-const GroupCard = ({message, isMine, displaySender, sender, isSeen, displayMenu, setDisplayMenu, setDeleteModal, setEdit, setText, setReplyTo, inputRef}) => {
+const GroupCard = ({message, isMine, displaySender, sender, isSeen, displayMenu, setDisplayMenu, setDeleteModal, setEdit, setText, setReplyTo, inputRef, disabledChat, isTemp}) => {
     const { authUser, setAuthUser } = useAuthStore();
     // loading state
     const [loading, setLoading] = useState(false);
@@ -178,7 +178,7 @@ const GroupCard = ({message, isMine, displaySender, sender, isSeen, displayMenu,
     return (
         <div className='w-full relative' ref={containerRef}>
             <div 
-                onClick={() => setDisplayMenu(prev => !prev)}
+                onClick={() => { if(!isTemp) setDisplayMenu(prev => !prev) }}
                 className={`w-full min-w-[200px] p-2 overflow-hidden flex flex-col items-center gap-2 bg-light-200 dark:bg-dark-200 text-light-txt dark:text-dark-txt
                     ${isMine ? 'rounded-tr-4xl rounded-tl-4xl rounded-bl-4xl' : 'rounded-tr-4xl rounded-tl-4xl rounded-br-4xl'}
                 `}
@@ -246,7 +246,7 @@ const GroupCard = ({message, isMine, displaySender, sender, isSeen, displayMenu,
             {/* menu options */}
             <AnimatePresence>
             {
-                displayMenu && 
+                !isTemp && displayMenu && 
                 <OptionsMenu 
                     ref={menuRef} 
                     position={menuPosition} 
@@ -260,6 +260,7 @@ const GroupCard = ({message, isMine, displaySender, sender, isSeen, displayMenu,
                     setReplyTo={setReplyTo}
                     setDeleteModal={setDeleteModal}   
                     inputRef={inputRef}
+                    disabledChat={disabledChat}
                 />
             }
             </AnimatePresence>
@@ -286,7 +287,7 @@ const GroupCard = ({message, isMine, displaySender, sender, isSeen, displayMenu,
  * - setDeleteModal, setEdit, setText, setReplyTo, inputRef: passed down to options menu
  * - scrollToMessage: function to scroll to the original message of reply section
 */
-const Bubble = ({message, isMine, displaySender, sender, isSeen, displayMenu, setDisplayMenu, setDeleteModal, setReplyTo, setEdit, setText, inputRef, scrollToMessage}) => {
+const Bubble = ({message, isMine, displaySender, sender, isSeen, displayMenu, setDisplayMenu, setDeleteModal, setReplyTo, setEdit, setText, inputRef, scrollToMessage, disabledChat, isTemp}) => {
     
     // get reply's original message infos
     const replyTo = message.replyTo;
@@ -340,7 +341,7 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, displayMenu, se
     return (
         <div className='w-full relative' ref={containerRef}>
             <div 
-                onClick={() => setDisplayMenu(prev => !prev)}
+                onClick={() => { if(!isTemp) setDisplayMenu(prev => !prev) }}
                 className={`w-full min-w-[100px] overflow-hidden flex flex-col items-center gap-1
                     ${isMine ? 'bg-gradient-to-tr from-primary to-secondary text-inverted rounded-tr-2xl rounded-tl-2xl rounded-bl-2xl' : 
                     'bg-light-300 text-light-txt dark:bg-dark-300 dark:text-dark-txt rounded-tr-2xl rounded-tl-2xl rounded-br-2xl'}
@@ -392,7 +393,7 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, displayMenu, se
             {/* options menu */}
             <AnimatePresence>
             {
-                displayMenu && 
+                !isTemp && displayMenu && 
                 <OptionsMenu 
                     ref={menuRef} 
                     position={menuPosition} 
@@ -405,6 +406,7 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, displayMenu, se
                     setText={setText}
                     setDeleteModal={setDeleteModal}
                     inputRef={inputRef}   
+                    disabledChat={disabledChat}
                 />
             }
             </AnimatePresence>
@@ -427,8 +429,19 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, displayMenu, se
  * - myLastMessage: boolean controls whether message footer is rendered or not
  * - displayDetails: boolean controls whether footer contains text details or seen images
 */
-const MessageFooter = ({seenBy, seenByOther, myLastMessage, displayDetails}) => {
+const MessageFooter = ({seenBy, seenByOther, myLastMessage, displayDetails, isTemp, status}) => {
     const { selectedChat } = useChatStore();
+
+    if(isTemp && myLastMessage) {
+        return (
+            <div className={`max-w-full flex items-center justify-end gap-1 pt-0.5 text-xs capitalize ${status == "failed" ? 'text-danger' : 'text-light-txt2 dark:text-dark-txt2 animate-pulse'}`}>
+                <>
+                    <span>{status}</span> 
+                    { status == "failed" ? <CircleAlert className='size-4' /> : <SendHorizonal className='size-4' /> }
+                </>
+            </div>    
+        )
+    }
 
     // check if chat is group chat or private
     const isGroup = selectedChat.isGroup;
@@ -522,7 +535,7 @@ const MessageFooter = ({seenBy, seenByOther, myLastMessage, displayDetails}) => 
  * - setDeletModal: setter to toggle delete message confirmation modal
  * - inputRef: chat input ref used to focus the input
 */
-const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard = false, onClose, setEdit, setText, setReplyTo, setDeleteModal, inputRef}, ref) => {
+const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard = false, onClose, setEdit, setText, setReplyTo, setDeleteModal, inputRef, disabledChat}, ref) => {
 
     // animation varaiants
     const variants = {
@@ -599,13 +612,15 @@ const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard 
             transition={{ duration: 0.2, ease: 'easeOut' }}
         >
             {/* reply to option */}
-            <button  
-                className='flex items-center gap-4 p-2 capitalize transition-all cursor-pointer hover:bg-light-300 hover:dark:bg-dark-300'
-                onClick={handleReplyTo}  
-            >
-                <Reply className='size-5 lg:size-6' />
-                Reply to
-            </button>
+            {!disabledChat && 
+                <button  
+                    className='flex items-center gap-4 p-2 capitalize transition-all cursor-pointer hover:bg-light-300 hover:dark:bg-dark-300'
+                    onClick={handleReplyTo}  
+                >
+                    <Reply className='size-5 lg:size-6' />
+                    Reply to
+                </button>
+            }
             {/* copy to clipboard option (only if message has text and is not a group invite) */}
             {
                 !isGroupCard && message.text && (
@@ -632,7 +647,7 @@ const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard 
             }
             {/* edit message option (only if message is mine and not seen and is not a group invite) */}
             {
-                isMine && !isGroupCard && !isSeen && (
+                !disabledChat && isMine && !isGroupCard && !isSeen && (
                 <button  
                     className='flex items-center gap-4 p-2 capitalize transition-all cursor-pointer hover:bg-light-300 hover:dark:bg-dark-300'
                     onClick={handleEdit}
@@ -644,7 +659,7 @@ const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard 
             }
             {/* delete message option (only if message is mine) open confirmation modal */}
             {
-                isMine && (
+                !disabledChat && isMine && (
                 <button  
                     className='flex items-center gap-4 p-2 capitalize transition-all cursor-pointer hover:bg-light-300 hover:dark:bg-dark-300'
                     onClick={() => setDeleteModal(true)}
@@ -681,7 +696,7 @@ const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard 
  * - scrollToMessage: passed down to Bubble
  * - onDelete: callback function to update messages and chat after deleting the message 
 */
-const MessageBubble = ({message, displayDay, displaySender, myLastMessage, isHighlighted, setReplyTo, setEdit, setText, inputRef, scrollToMessage, onDeleteMessage}) => {
+const MessageBubble = ({message, displayDay, displaySender, myLastMessage, isHighlighted, setReplyTo, setEdit, setText, inputRef, scrollToMessage, onDeleteMessage, disabledChat}) => {
   const { authUser } = useAuthStore();
   const { getSeenBy, messages, updateMessages } = useChatStore();
 
@@ -690,13 +705,20 @@ const MessageBubble = ({message, displayDay, displaySender, myLastMessage, isHig
   const [deleteModal, setDeleteModal] = useState(false); // delete message confirmation modal visibility state
   const [loading, setLoading] = useState(false); // lodaing state
 
+  // check if message is optimistic 
+  const isTemp = message.tempID ? true : false;
+
   // check if message is mine or not (for alignment)
   const isMine = message.sender.userID === authUser.userID;
+
   // get other user infos who saw my message
   const seenByOther = message.seenBy.filter(s => s.user !== authUser.userID);
 
-  // get list of users who saw the message
-  let seenBy = getSeenBy(message.messageID); 
+  // get list of users who saw the message (if not an optimistic message)
+  let seenBy;
+  if(!isTemp) {
+    seenBy = getSeenBy(message.messageID); 
+  }
   
   // handle delete message
   const handleDeleteMessage = async () => {
@@ -772,6 +794,8 @@ const MessageBubble = ({message, displayDay, displaySender, myLastMessage, isHig
                                     setReplyTo={setReplyTo}
                                     setDeleteModal={setDeleteModal}
                                     inputRef={inputRef}
+                                    disabledChat={disabledChat}
+                                    isTemp={isTemp}
                                 />
                             ) : ( 
                                 // normal message
@@ -790,6 +814,8 @@ const MessageBubble = ({message, displayDay, displaySender, myLastMessage, isHig
                                     setDeleteModal={setDeleteModal}
                                     inputRef={inputRef}
                                     scrollToMessage={scrollToMessage}
+                                    disabledChat={disabledChat}
+                                    isTemp={isTemp}
                                 />
                             )}
                             {/* display footer under my message */}
@@ -799,6 +825,8 @@ const MessageBubble = ({message, displayDay, displaySender, myLastMessage, isHig
                                     seenBy={seenBy}
                                     seenByOther={seenByOther}
                                     displayDetails={displayMenu}
+                                    isTemp={isTemp}
+                                    status={message.status}
                                 />
                             )}
                         </div>
