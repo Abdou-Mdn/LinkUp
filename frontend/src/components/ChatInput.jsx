@@ -1,6 +1,7 @@
 import React, { forwardRef, useEffect, useRef, useState } from 'react'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
+
 import { CircleCheck, FileImage, Image, Laugh, Mail, MessageSquareQuote, Send, SquarePen, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
