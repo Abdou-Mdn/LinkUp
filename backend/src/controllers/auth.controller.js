@@ -103,18 +103,6 @@ const login = async (req,res) => {
 // logout user by clearing JWT cookie and updating lastSeen
 const logout = async (req,res) => {
     try {
-        const userID = req.user.userID;
-
-        // find user in db
-        const user = await User.findOne({userID});
-        if (!user) {
-            return res.status(404).json({ message: "User not found." });
-        }
-
-        // update lastSeen
-        user.lastSeen = new Date();
-        await user.save();
-
         // clear the JWT cookie
         clearToken(res);
 

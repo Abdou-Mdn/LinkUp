@@ -38,6 +38,19 @@ const getUsers = async (name, reset, page = 1, limit = 10) => {
     }
 }
 
+// get authUser's full list of friends (only profilePic, name and userID)
+// returns: * friends <array> friends list
+const getFriendsIDs = async () => {
+    try {
+        const res = await axiosInstance.get("/user/friendsIDs/");
+        return res.data
+    } catch (error) {
+        toast.error(error.response.data.message)
+        return null;
+    }
+}
+
+
 // get authUser's friends with pagination
 // params: * reset <boolean>  
 //         * page <number>
@@ -269,7 +282,7 @@ const deleteAccount = async (password) => {
 
 export {
     getUserDetails, getUsers, 
-    getFriends, getFriendRequests, getSentFriendRequests, getMutualFriends,
+    getFriendsIDs, getFriends, getFriendRequests, getSentFriendRequests, getMutualFriends,
     sendFriendRequest, cancelFriendRequest, acceptFriendRequest, declineFriendRequest, removeFriend,
     updateProfile, updateEmail, updatePassword, deleteAccount
 }

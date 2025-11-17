@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 
+// create temporary message for optimistic loading 
 const createOptimisticMessage = ({sender, chatID = null, receiverID = null, text = "", image = null, replyTo = null}) => {
     const tempID = uuidv4();
     const date = new Date();

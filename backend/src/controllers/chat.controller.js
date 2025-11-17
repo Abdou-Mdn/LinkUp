@@ -3,6 +3,7 @@ const Message = require("../models/message.model");
 const Group = require("../models/group.model");
 const User = require("../models/user.model");
 const cloudinary = require("../lib/cloudinary");
+const { getIO, getSocketID } = require("../lib/socket");
 
 /* ---------- helper functions for population ------------ */
 
@@ -352,18 +353,13 @@ const markMessagesAsSeen = async (req, res) => {
 
         // mark unseen messages as seen by the user (bulk update)
         const date = new Date();
-        const result = await Message.updateMany(
+        await Message.updateMany(
             {
                 chatID,
                 "seenBy.user": { $ne: userID }
             },
-            { $push: { seenBy: { user: userID, seenAt: date } } }
+            { $addToSet: { seenBy: { user: userID, seenAt: date } } }
         );
-
-        // exit if no unseen messages
-        if (result.modifiedCount === 0) {
-            return res.status(200).json({ message: "No unseen messages", chat });
-        }
 
         // update chat for frontend sync
         if (chat.lastMessage) {
@@ -371,7 +367,25 @@ const markMessagesAsSeen = async (req, res) => {
             chat.lastMessage.seenBy.push({ user: userID, seenAt: date });
         }
 
-        return res.status(200).json({ message: "all messages marked as seen", chat });
+        // send real time update to the receiver
+        const io = getIO();
+
+        chat.participants.forEach((user) => {
+            const receiverID = chat.isGroup ? user : user.userID;
+            
+            if(receiverID == userID) return;
+            
+            const socketID = getSocketID(receiverID);
+            if(socketID) {
+                io.to(socketID).emit("seenMessages", {
+                    chat,
+                    user: userID,
+                    seenAt: date,
+                });
+            }
+        });
+
+        return res.status(200).json({ message: "all messages marked as seen", chat, seenAt: date });
     } catch (error) {
         console.error("Error in mark message as seen controller", error.message);
         res.status(500).json({message: "Internal server error"});
@@ -382,7 +396,7 @@ const markMessagesAsSeen = async (req, res) => {
 const sendMessage = async (req, res) => {
     try {
         const senderID = req.user.userID;
-        const {chatID, receiverID, text, image, replyTo} = req.body
+        const {chatID, receiverID, text, image, replyTo} = req.body 
 
         // validate message content (can't be empty)
         if(!text && !image) {
@@ -465,16 +479,68 @@ const sendMessage = async (req, res) => {
         await message.save();
 
         // update chat with lastMessage and updatedAt
-        chat = await Chat.updateOne( 
+        chat = await Chat.findOneAndUpdate( 
             { chatID: chat.chatID }, 
             { $set: { lastMessage: message.messageID, updatedAt: date } }
-        );
+        ).select("-_id -__v")
+         .populate([
+            {
+                path: "group",  // populate group if it's a group chat
+                model: "Group",
+                localField: "group",
+                foreignField: "groupID",
+                select: "groupID name image members"
+            },
+            {
+                path: "lastMessage", // populate last message infos
+                model: "Message",
+                localField: "lastMessage",
+                foreignField: "messageID",
+                justOne: true,
+                select: "-_id -__v -chatID",
+                populate: {
+                    path: "sender", // nested populate: last message sender infos
+                    model: "User",
+                    localField: "sender",
+                    foreignField: "userID",
+                    select: "userID name profilePic lastSeen isDeleted"
+                }
+            }
+         ])
+         .lean();
+
+        // populate participants if it's a private chat
+        if(!chat.isGroup) {
+            const participantsData = await User.find(
+                { userID: { $in: chat.participants } },
+                "userID name profilePic lastSeen isDeleted"
+            ).lean();
+            chat.participants = participantsData;  
+        } 
         
         // populate data to send to frontend
         const newMessage = await populateMessage({messageID: message.messageID});
 
-        res.status(201).json({ message: "Message sent", newMessage, updatedAt: date});
+        // send real time update to the receiver
+        const io = getIO();
 
+        chat.participants.forEach((user) => {
+            const userID = chat.isGroup ? user : user.userID;
+            
+            if(userID == senderID) return;
+            
+            const socketID = getSocketID(userID);
+            if(socketID) {
+                io.to(socketID).emit("newMessage", {
+                    chat: chat,
+                    message: newMessage,
+                    updatedAt: date,
+                });
+            }
+        });
+
+        // send response to the sender
+        res.status(201).json({ message: "Message sent", chat, newMessage, updatedAt: date});
     } catch (error) {
         console.error("Error in send message controller", error.message);
         res.status(500).json({message: "Internal server error"});
@@ -542,14 +608,55 @@ const sendGroupInvites = async (req, res) => {
         await message.save();
 
         // udpate chat infos
-        await Chat.updateOne(
+        chat = await Chat.findOneAndUpdate(
             { chatID: chat.chatID },
             { $set: { lastMessage: message.messageID, updatedAt: date } }
-        );
+        ).select("-_id -__v")
+         .populate([
+            {
+                path: "group",  // populate group if it's a group chat
+                model: "Group",
+                localField: "group",
+                foreignField: "groupID",
+                select: "groupID name image members"
+            },
+            {
+                path: "lastMessage", // populate last message infos
+                model: "Message",
+                localField: "lastMessage",
+                foreignField: "messageID",
+                justOne: true,
+                select: "-_id -__v -chatID",
+                populate: {
+                    path: "sender", // nested populate: last message sender infos
+                    model: "User",
+                    localField: "sender",
+                    foreignField: "userID",
+                    select: "userID name profilePic lastSeen isDeleted"
+                }
+            }
+         ])
+         .lean();
 
         // populate message for response
         const newMessage = await populateMessage({ messageID: message.messageID })
         
+        // send real time update to the receiver
+        const io = getIO();
+
+        chat.participants.forEach((userID) => {
+            if(userID == senderID) return;
+            
+            const socketID = getSocketID(userID);
+            if(socketID) {
+                io.to(socketID).emit("newMessage", {
+                    chat: chat,
+                    message: newMessage,
+                    updatedAt: date,
+                });
+            }
+        });
+
         // increment success
         successful++;
         return newMessage;
@@ -610,6 +717,23 @@ const editMessage = async (req, res) => {
         message.isEdited = true;
         await message.save();
 
+        // send real time updates 
+        const chat = await Chat.findOne({ chatID: message.chatID }).select("chatID participants").lean();
+        const io = getIO();
+
+        chat.participants.forEach((user) => {
+            if(user == userID) return;
+            
+            const socketID = getSocketID(user);
+            if(socketID) {
+                io.to(socketID).emit("editMessage", {
+                    chatID: chat.chatID,
+                    messageID: message.messageID,
+                    text: message.text,
+                });
+            }
+        });
+
         return res.status(200).json({ message: "Message edited successfully", updatedMessage: message });
 
     } catch (error) {
@@ -639,6 +763,22 @@ const deleteMessage = async (req, res) => {
         message.text = "";
         message.image = "";
         await message.save();
+
+        // send real time updates 
+        const chat = await Chat.findOne({ chatID: message.chatID }).select("chatID participants").lean();
+        const io = getIO();
+
+        chat.participants.forEach((user) => {
+            if(user == userID) return;
+            
+            const socketID = getSocketID(user);
+            if(socketID) {
+                io.to(socketID).emit("deleteMessage", {
+                    chatID: chat.chatID,
+                    messageID: message.messageID,
+                });
+            }
+        });
 
         res.status(200).json({ message: "Message deleted successfully", deletedMessage: message});
 

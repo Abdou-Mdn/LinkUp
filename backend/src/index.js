@@ -1,8 +1,10 @@
 require("dotenv").config();
 const express = require("express");
-const connectDB = require("./lib/db");
+const http = require("http");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
+const connectDB = require("./lib/db");
+const { initSocket } = require("./lib/socket");
 
 const app = express();
 const PORT = process.env.PORT;
@@ -25,8 +27,14 @@ app.use("/api/user", require("./routes/user.route.js")); // user related routes 
 app.use("/api/group", require("./routes/group.route.js")); // group management routes (profiles, members, join requests...)
 app.use("/api/chat", require("./routes/chat.route.js")); // chat messaging routes (chats, messages, send message...)
 
+// Create HTTP server
+const server = http.createServer(app);
+
+// Initialize Socket.io and pass the server
+initSocket(server);
+
 // Start server and connect to database when ready
-app.listen(PORT,() => {
+server.listen(PORT,() => {
     console.log(`server is running on port: ${PORT}`);
     connectDB(); // initialize mongoDB connection
 })

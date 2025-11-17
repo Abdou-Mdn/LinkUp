@@ -1,4 +1,5 @@
 import React from 'react'
+
 import { useAuthStore } from '../../store/auth.store'
 import { useLayoutStore } from '../../store/layout.store';
 
@@ -19,13 +20,13 @@ import { formatDateWithSuffix, timeSince } from '../../lib/util/timeFormat'
  * - onSelect: callback function to select a user to display on profile container 
  */
 const ProfilePreview = ({user, isSelected, onSelect = () => {}}) => {
-  const { authUser } = useAuthStore();
+  const { authUser, onlineUsers } = useAuthStore();
   const { isMobile } = useLayoutStore();
 
   // check if user is my friend
-    const isFriends = authUser.friends.some(f => f.user == user.userID);
+  const isFriends = authUser.friends.some(f => f.user == user.userID);
   // user online status
-  const isOnline = true;
+  const isOnline = onlineUsers.includes(user.userID);
 
   // default additional info (date the account was created)
   let additionalInfo = `Joined on ${formatDateWithSuffix(user.createdAt)}`;;
@@ -35,10 +36,10 @@ const ProfilePreview = ({user, isSelected, onSelect = () => {}}) => {
     additionalInfo = "You"
   } else if(isFriends) {
     // display online status if user is my friend
-    if(user.lastSeen) {
-      additionalInfo = `Last seen ${timeSince(user.lastSeen, "")}`;
-    } else {
+    if(isOnline) {
       additionalInfo = "Online"
+    } else {
+      additionalInfo = `Last seen ${timeSince(user.lastSeen, "")}`;
     }
   } else {
     // if user is not my friend, count mutual friends

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Check, Ghost } from 'lucide-react';
 import { motion, AnimatePresence } from "motion/react"
 
+import { useAuthStore } from '../../store/auth.store';
+
 import { getFriends } from '../../lib/api/user.api';
 import { createGroup } from '../../lib/api/group.api';
 
@@ -31,7 +33,7 @@ import AnimatedModal from '../AnimatedModal';
  * - onCreate: callback function to update the groups list after creating the group
 */
 const CreateGroupModal = ({onClose, onCreate}) => {
-
+    const { socket } = useAuthStore();
     // Ui states
     const [activeSection, setActiveSection] = useState("name");
 
@@ -121,6 +123,21 @@ const CreateGroupModal = ({onClose, onCreate}) => {
             return newSet;
         })
     }
+
+    // update lastSeen when user disconnects
+    useEffect(() => {
+        if(!socket) return;
+
+        const handleUserOffline = ({ userID, lastSeen }) => {
+            setFriends(prev =>
+                prev.map(f => f.userID === Number(userID) ? { ...f, lastSeen } : f)
+            );
+        };
+
+        socket.on("userOffline", handleUserOffline);
+
+        return () => socket.off("userOffline", handleUserOffline);
+    }, [socket]);
 
     //useEffect hook for infinite scrolling in the "members" section.
     useEffect(() => {

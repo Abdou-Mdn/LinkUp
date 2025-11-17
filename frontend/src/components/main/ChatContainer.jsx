@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { ArrowDown, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -7,12 +7,14 @@ import { useAuthStore } from '../../store/auth.store';
 import { useChatStore } from '../../store/chat.store';
 
 import { isDifferentDay } from '../../lib/util/timeFormat';
+import { markMessagesAsSeen } from '../../lib/api/chat.api';
 
 import ChatHeader from '../layout/ChatHeader'
 import ChatInput from '../ChatInput'
 import MessageBubble from '../previews/MessageBubble';
 import ChatContainerSkeleteon from '../skeleton/ChatContainerSkeleteon';
 import MessageSkeleton from '../skeleton/MessageSkeleton';
+import TypingIndicator from '../previews/TypingIndicator';
 
 
 
@@ -29,23 +31,33 @@ import MessageSkeleton from '../skeleton/MessageSkeleton';
  * - onSendMessage: callback function to update chats list after sending a message
  * - onEditMessage: callback function to update chats list after editing a message
  * - onDeleteMessage: callback function to update chats list after deleting a message
+ * - onSeenMessages: callback function to update chats list after seeing new messages
 */
-const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
-  const { authUser } = useAuthStore();
-  const { selectedChat, loadingChat, messages, loadingMessages,  loadingMoreMessages, loadMoreMessages } = useChatStore();
+const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage, onSeenMessages }) => {
+  const { authUser, onlineUsers, socket } = useAuthStore();
+  const { selectedChat, updateSelectedChat, loadingChat, messages, loadingMessages,  loadingMoreMessages, loadMoreMessages, updateMessages, typingUsers } = useChatStore();
 
+  // check if at least one participant of the chat is online (authenticated user is excluded)
+  const onlineMembers = selectedChat?.participants?.filter(p => p.userID !== authUser.userID && onlineUsers.includes(p.userID)) || [];
+  const isOnline = onlineMembers.length > 0;
 
   // check if chat is private then get other user infos from chat participants
-  let otherUser = null, isOnline = null;
+  let otherUser = null;
   if(!selectedChat.isGroup && !loadingChat) {
     otherUser = selectedChat.participants.filter(p => p.userID !== authUser.userID)[0];
   } 
 
   // check if chat is private and disabled
-  const disabledChat = !selectedChat.isGroup && otherUser.isDeleted;
+  const disabledChat = !selectedChat.isGroup && otherUser?.isDeleted;
 
   // find my last message
   const myLastMessage = [...messages].reverse().find(m => m.sender.userID === authUser.userID);
+  
+  // keep track of the last message in the discussion
+  const lastMessage = messages[messages.length - 1];
+
+  // check if there are new unseen messages
+  const newMessages = ((lastMessage !== myLastMessage) && (!lastMessage?.seenBy?.some(u => u.user === authUser.userID ))) || false;
 
   // management states
   const [text, setText] = useState(""); // chat input text state
@@ -61,15 +73,46 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
   const bottomRef = useRef(null); // ref to sentinel div at the bottom 
   const loaderRef = useRef(null); // ref to loader (for infinit scroll) 
   const messagesRefs = useRef({}); // refs to each message DOM node
-  const lastScrollTop = useRef(0); // stores last scroll positiob (for loadMore detection)
-
+  const lastScrollTop = useRef(0); // stores last scroll position (for loadMore detection)
 
   // scroll to bottom when initial messages load
+  const scrollToBottom = () => {
+    bottomRef.current.scrollIntoView({ behavior: "smooth" });
+  }
+  
+  // scroll to bottom on initial load
   useEffect(() => {
     if (!loadingMessages && messages.length > 0) {
-      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+      scrollToBottom();
     }
   }, [loadingMessages]);
+
+  // mark new messages as seen after scrolling to bottom
+  useEffect(() => {
+    const seeMessages = async () => {
+      try {
+        if(selectedChat && messages.length > 0 && !scrollDown && newMessages) {
+          const res = await markMessagesAsSeen(selectedChat.chatID); // mark messages as seen
+
+          if(res?.chat) {
+            onSeenMessages(res.chat);
+
+            const newMessages = useChatStore.getState().messages.map(msg => {
+              if(msg.seenBy.some(u => u.user === authUser.userID)) return msg;
+
+              return {...msg, seenBy: [...msg.seenBy, {user: authUser.userID, seenAt: res.seenAt}]}
+            });
+
+            updateMessages(newMessages)
+          }
+        } 
+      } catch (error) {
+        console.log("error in marking messages as seen", error);
+      }
+    }
+
+    seeMessages();
+  }, [scrollDown, lastMessage]);
 
   // handle scroll event to toggle "back to bottom" button visibility
   const handleScroll = () => {
@@ -153,12 +196,40 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
     });
   }, [messages, loadingMoreMessages]);
 
-  // scroll down automatically when user send a new message
+  // scroll down automatically when user sends a new message
   useEffect(() => {
-    if(myLastMessage) {
-      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    if(messages.length > 0) {
+      if((lastMessage && !scrollDown) || (lastMessage === myLastMessage)) {
+        scrollToBottom();
+      }
     }
-  }, [myLastMessage]);
+  }, [lastMessage]);
+
+  // scroll down when a user is typing
+  useEffect(() => {
+    if(typingUsers.length > 0 && !scrollDown) {
+      scrollToBottom();
+    }
+  }, [typingUsers]);
+
+  // real time updates
+  useEffect(() => {
+    if(!socket) return;
+
+    // update lastSeen online after user goes offline
+    const handleUserOffline = ({ userID, lastSeen }) => {
+      if(!selectedChat || selectedChat?.isGroup) return;
+      const updatedParticipants = selectedChat.participants.map(p => p.userID === Number(userID) ? {...p, lastSeen} : p);
+      const newChat = {...selectedChat, participants: updatedParticipants};
+      updateSelectedChat(newChat);
+    };
+    socket.on("userOffline", handleUserOffline);
+
+    // cleanup listeners on unmount
+    return () => {
+      socket.off("userOffline", handleUserOffline);
+    }
+  }, [socket, selectedChat]);
 
   // render skeleton while still loading chat
   if (loadingChat) {
@@ -244,6 +315,10 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
                 )
               })
             }
+            {/* display typing indicators */}
+            {
+              typingUsers.map(user => (user.userID === authUser.userID) ? null : <TypingIndicator key={user.userID} profilePic={user.profilePic}/>) 
+            }
             {/* sentinal div for scrolling to the bottom */}
             <div ref={bottomRef}></div>
           </ul>
@@ -255,13 +330,15 @@ const ChatContainer = ({ onSendMessage, onEditMessage, onDeleteMessage }) => {
         <motion.button 
           title='Back to bottom'
           className={`p-2 rounded-full cursor-pointer transition-colors absolute ${(edit || replyTo) ? 'bottom-36' : 'bottom-24'} right-1/2 z-10 border-1 bg-light-300 dark:bg-dark-300 border-light-txt2 dark:border-dark-txt2 text-light-txt2 dark:text-dark-txt2 hover:border-primary hover:bg-primary hover:text-inverted`}
-          onClick={() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }}  
+          onClick={scrollToBottom}  
           initial={{ opacity: 0, y: 50, }}
           animate={{ opacity: 1, y: 0, }}
           exit={{ opacity: 0, y: 50, }}
           transition={{ type: 'spring', stiffness: 400, damping: 20 }}
         >
-          <ChevronDown className='size-6' />
+          {
+            newMessages ? <span className='text-sm'>New Messages</span> : <ChevronDown className='size-6' />
+          }
         </motion.button>
       }
       </AnimatePresence>

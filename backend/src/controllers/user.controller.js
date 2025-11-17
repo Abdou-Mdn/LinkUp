@@ -75,6 +75,32 @@ const getUserDetails = async (req, res) => {
     }
 }
 
+// get full list of user's friends (only userID, name, profilePicture) 
+const getFriendsIDs = async (req, res) => {
+    try {
+        const userID = req.user.userID;
+
+        // validate user existence
+        const user = await User.findOne({userID, isDeleted: { $ne: true }}).select("friends").lean();
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // get all the friends ids
+        const friendIDs = user.friends.map(f => f.user);
+
+        // fetch friends informations
+        const friends = await User.find({ userID: { $in: friendIDs }, isDeleted: { $ne: true }})
+            .select("userID name profilePic")
+            .lean()
+
+        return res.json({ friends });
+    } catch (error) {
+        console.error("Error in get friends ids controller:", error.message);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
 // get list of user's friends (paginated)
 const getFriends = async (req, res) => {
     try {
@@ -958,7 +984,7 @@ const declineFriendRequest = async (req, res) => {
 
 module.exports = {
     getUsers, getUserDetails, 
-    getFriends, getMutualFriends, removeFriend,
+    getFriendsIDs, getFriends, getMutualFriends, removeFriend,
     updateProfile, updateEmail, updatePassword, deleteAccount,
     getPendingFriendRequests, getSentFriendRequests, sendFriendRequest, cancelFriendRequest, 
     acceptFriendRequest, declineFriendRequest, getSentJoinRequests

@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import { toast } from "react-hot-toast";
+import { io } from 'socket.io-client';
 import { useChatStore } from "./chat.store";
+
+const BASE_URL = "http://localhost:2025";
 
 export const useAuthStore = create((set, get) => ({
     // global states
@@ -9,6 +12,10 @@ export const useAuthStore = create((set, get) => ({
     isSigningUp: false, // loading state fduring signup
     isLoggingIn: false, // loading state during login
     isCheckingAuth: false, // loading state while verifying session
+
+    // real time states
+    socket: null, // active socket 
+    onlineUsers: [], // list of online users
 
     // setter to directly update the authenticated user
     setAuthUser: (user) => set({ authUser: user}),
@@ -20,6 +27,7 @@ export const useAuthStore = create((set, get) => ({
             // backend returns user info if session is valid
             const res = await axiosInstance.get("/auth/check");
             set({ authUser: res.data});
+            get().connectSocket();
         } catch (error) {
             // clear user if session is invalid or expired
             set({authUser: null});
@@ -36,6 +44,7 @@ export const useAuthStore = create((set, get) => ({
             // backend returns user info if login is successful
             const res = await axiosInstance.post("/auth/login",data);
             set({authUser: res.data.user});
+            get().connectSocket();
             toast.success("Logged in successfully");
         } catch (error) {
             // display backend error message
@@ -53,6 +62,7 @@ export const useAuthStore = create((set, get) => ({
             // backend returns new created user info if signup is successfull 
             const res = await axiosInstance.post("/auth/signup",data);
             set({ authUser: res.data.user });
+            get().connectSocket();
             toast.success("Account created successfully");
         } catch (error) {
             // display backend error message
@@ -70,11 +80,36 @@ export const useAuthStore = create((set, get) => ({
             set({authUser: null});
             // reset chat state after logging out
             useChatStore.getState().resetChat();
+            get().disconnectSocket();
             toast.success("Logged out successfully");
         } catch (error) {
             // display backend error message
-            toast.error(error.respose.data.message);
+            toast.error(error.response.data.message);
         }
     },
 
+    // connect to socket
+    connectSocket: () => {
+        const { authUser } = get();
+        if(!authUser || get().socket?.connected) return;
+        const socket = io(BASE_URL, {
+            query: {
+                userID: authUser.userID,
+            },
+            withCredentials: true,
+        });
+        set({ socket });
+
+        socket.on("onlineUsers", (userIDs) => {
+            set({ onlineUsers: userIDs });
+        });
+    },
+
+    // disconnect from socket
+    disconnectSocket: () => {
+        if(get().socket?.connected) {
+            get().socket.disconnect();
+            set({ socket: null });
+        }
+    },
 }))

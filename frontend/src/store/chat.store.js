@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { useLayoutStore } from "./layout.store";
 import { useAuthStore } from "./auth.store";
 import { getChatMessages, getGroupChat, getPrivateChat } from "../lib/api/chat.api";
+import { notificationSound } from "../lib/util/notification";
 
 export const useChatStore = create((set, get) => ({
     // chat states
@@ -19,15 +20,23 @@ export const useChatStore = create((set, get) => ({
     // map of last seen message per user { userID: messageID }
     lastSeenMap: {},
 
+    // keep track of typing users
+    typingUsers: [],
+
     // helpers
     // setter to manually update the selected chat
     updateSelectedChat: (chat) => {
         set({selectedChat: chat});
     },
 
-    // setter to manually replace messages array
+    // setter to manually update the messages array
     updateMessages: (messages) => {
         set({ messages: messages});
+    },
+
+    // setter to manually update the typingUsers array
+    updateTypingUsers: (newUsers) => {
+        set({ typingUsers: newUsers });
     },
 
     // reset chat states (on logout or cleanup)
@@ -41,6 +50,7 @@ export const useChatStore = create((set, get) => ({
             loadingMessages: false,
             loadingMoreMessages: false,
             lastSeenMap: {},
+            typingUsers: [],
         })
     },
 
@@ -92,6 +102,7 @@ export const useChatStore = create((set, get) => ({
             hasMoreMessages: false, 
             loadingMessages: false, 
             loadingMoreMessages: false,
+            typingUsers: [],
             selectedChat: chat || userID || groupID, // Temporary placeholder while fetching full chat details
         });
         setMainActive(true); // Ensure main panel is active/visible (UI action triggered when opening a chat)
@@ -191,4 +202,89 @@ export const useChatStore = create((set, get) => ({
             set({ loadingMoreMessages: false});
         }
     },
+
+    // subscribe to messages for real time updates
+    subscribeToMessages: (onReceivedMessage, onSeenMessages, onEditMessage, onDeleteMessage, setTypingUsers) => {
+        const socket = useAuthStore.getState().socket;
+        if(!socket) return;
+
+        // update messages when receiving a new message
+        socket.on("newMessage", ({chat, message, updatedAt}) => {
+            const { selectedChat, messages, updateMessages } = get();
+            onReceivedMessage(chat, message, updatedAt);
+            notificationSound.play().catch(() => {}); // play notification sound when receiving a new message
+            if (selectedChat && (selectedChat.chatID === Number(chat.chatID))) {
+                updateMessages([...messages, message]);
+            }
+        });
+
+        // update messages when messages are seen
+        socket.on("seenMessages", ({chat, user, seenAt}) => {
+            const { selectedChat, messages, updateMessages, updateLastSeenMap } = get();
+            onSeenMessages(chat);
+            if(selectedChat && (selectedChat.chatID === chat.chatID)) {
+                const newMessages = messages.map(msg => {
+                    if(msg.seenBy.some(u => u.user === Number(user))) return msg;
+
+                    return {...msg, seenBy: [...msg.seenBy, {user: Number(user), seenAt: seenAt}]}
+                });
+
+                updateMessages(newMessages);
+                updateLastSeenMap();
+            }
+        });
+
+        // update messages when a message is edited 
+        socket.on("editMessage", ({ chatID, messageID, text }) => {
+            const { selectedChat, messages, updateMessages } = get();
+            onEditMessage(chatID, messageID, text);
+            if(selectedChat && (selectedChat === Number(chatID))) {
+                const newMessages = messages.map(msg => msg.messageID == Number(messageID) ? { ...msg, text, isEdited: true } : msg);
+                updateMessages(newMessages)
+            }
+        });
+
+        // update messages when a message is deleted
+        socket.on("deleteMessage", ({ chatID, messageID }) => {
+            const { selectedChat, messages, updateMessages } = get();
+            onDeleteMessage(chatID, messageID);
+            if(selectedChat && (selectedChat.chatID === Number(chatID))) {
+                const newMessages = messages.map(msg => msg.messageID == Number(messageID) ? { ...msg, text: "", image: "", isDeleted: true } : msg);
+                updateMessages(newMessages)
+            }
+        });
+
+        // update typingUsers when a user starts typing
+        socket.on("typingOn", ({ chatID, userID }) => {
+            const { selectedChat, typingUsers, updateTypingUsers } = get();
+            if (selectedChat?.chatID !== Number(chatID)) return;
+            const participant = selectedChat.participants.find(p => p.userID === Number(userID)) || null;
+            if(participant && !typingUsers.some(user => user.userID === participant.userID)) {
+                const newUsers = [...typingUsers, { userID: participant.userID, profilePic: participant.profilePic}];
+                updateTypingUsers(newUsers);
+            }
+        });
+
+        // update typingUsers when a user stops typing
+        socket.on("typingOff", ({ chatID, userID }) => {
+            const { selectedChat, typingUsers, updateTypingUsers } = get();
+            if (selectedChat?.chatID !== Number(chatID)) return;
+            const newUsers = typingUsers.filter(user => user.userID !== Number(userID));
+            updateTypingUsers(newUsers);
+            
+        });
+    },
+
+    // unsubscribe from messages
+    unsubscribeFromMessages: () => {
+        const socket = useAuthStore.getState().socket;
+        if(socket) {
+            socket.off("newMessage");
+            socket.off("seenMessages");
+            socket.off("editMessage");
+            socket.off("deleteMessage");
+            socket.off("typingOn");
+            socket.off("typingOff");
+        }
+    }
 }))

@@ -4,10 +4,10 @@ const router = express.Router();
 const authMiddleware = require("../middleware/auth.middleware");
 const { 
     getUsers, getUserDetails, 
-    getFriends, getMutualFriends, removeFriend,
+    getFriendsIDs, getFriends, getMutualFriends, removeFriend,
     updateProfile, updateEmail, updatePassword, deleteAccount, 
     getPendingFriendRequests, getSentFriendRequests, sendFriendRequest, cancelFriendRequest,
-    acceptFriendRequest, declineFriendRequest, getSentJoinRequests
+    acceptFriendRequest, declineFriendRequest, getSentJoinRequests,
 } = require("../controllers/user.controller");
 
 // route is /api/user
@@ -20,6 +20,7 @@ router.get("/details/:userID", getUserDetails);
 router.use(authMiddleware);
 
 // friends
+router.get("/friendsIDs", getFriendsIDs);
 router.get("/friends", getFriends);
 router.get("/mutual/:userID",  getMutualFriends);
 router.delete("/friend/:userID",  removeFriend);

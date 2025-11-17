@@ -270,7 +270,7 @@ const Main = ({
  * - `getMutualFriends`, `getUserDetails`, `getUsers`, `getFriendMembers`, `getGroupDetails`, `getGroups`, `getJoinRequests`, `getMembers`
 */
 function DiscoverPage() {
-  const { authUser } = useAuthStore()
+  const { authUser, socket } = useAuthStore()
   const { setMainActive } = useLayoutStore();
 
   /* -------- aside states -------- */
@@ -396,6 +396,21 @@ function DiscoverPage() {
       fetchData(false, search)
     }
   }
+
+  // update lastSeen when user disconnects
+  useEffect(() => {
+    if(!socket) return;
+
+    const handleUserOffline = ({ userID, lastSeen }) => {
+      setUsers(prev =>
+        prev.map(user => user.userID === Number(userID) ? { ...user, lastSeen } : user)
+      );
+    };
+
+    socket.on("userOffline", handleUserOffline);
+
+    return () => socket.off("userOffline", handleUserOffline);
+  }, [socket]);
 
   /* -------- main content fetching -------- */
 

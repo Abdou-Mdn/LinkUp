@@ -281,6 +281,7 @@ const Main = ({user,mutualFriends, setUser, loading, updateFriends, updateFriend
 */
 function FriendsPage() {
   const { setMainActive } = useLayoutStore();
+  const { socket } = useAuthStore();
   
   /* -------- aside states -------- */
   const [activeTab, setActiveTab] = useState(1); // active tab control state: 1:"friends" | 2:"friend requests" | 3:"sent requests"
@@ -444,6 +445,21 @@ function FriendsPage() {
       fetchData();
     }
   }
+
+  // update lastSeen when user disconnects
+  useEffect(() => {
+    if(!socket) return;
+
+    const handleUserOffline = ({ userID, lastSeen }) => {
+      setFriends(prev =>
+        prev.map(f => f.userID === Number(userID) ? { ...f, lastSeen } : f)
+      );
+    };
+
+    socket.on("userOffline", handleUserOffline);
+
+    return () => socket.off("userOffline", handleUserOffline);
+  }, [socket]);
 
   /* -------- main content fetching -------- */
 

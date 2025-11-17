@@ -39,11 +39,11 @@ import AnimatedModal from '../AnimatedModal'
  * - onDemote: callback function to update group after demoting the member
 */
 const MemberPreview = ({member, groupID = null, isFriend = false, isAdmin = false, displayControls = false, onRemove, onPromote, onDemote}) => {
-    const { authUser } = useAuthStore();
+    const { authUser, onlineUsers } = useAuthStore();
     // check if member is me
     const isMe = authUser.userID === member.userID;
     // check if member is currently online
-    const isOnline = true;
+    const isOnline = onlineUsers.includes(member.userID);
 
     // member removal confirmation modal visibility
     const [removeModal, setRemoveModal] = useState(false); 
@@ -178,7 +178,7 @@ const MemberPreview = ({member, groupID = null, isFriend = false, isAdmin = fals
             <div className='flex-shrink-0 relative size-fit'>
                 <img src={member.profilePic ? member.profilePic : '/assets/avatar.svg'} className='size-12 rounded-[50%]'/>
                 {/* online status */}
-                { isOnline && <div className='bg-accent border-3 border-light-200 dark:border-dark-200 size-4.25 rounded-full absolute -right-0.75 -bottom-0.75'></div> }
+                { isFriend && isOnline && <div className='bg-accent border-3 border-light-200 dark:border-dark-200 size-4.25 rounded-full absolute -right-0.75 -bottom-0.75'></div> }
             </div>
             {/* informations */}
             <div className='flex flex-col min-w-0 flex-1'>

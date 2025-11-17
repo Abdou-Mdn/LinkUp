@@ -2,8 +2,10 @@ import React, { useState } from 'react'
 import { ArrowLeft, Phone, Video } from 'lucide-react';
 
 import { useLayoutStore } from '../../store/layout.store'
+import { useAuthStore } from '../../store/auth.store';
 
 import TertiaryButton from '../TertiaryButton';
+import { timeSince } from '../../lib/util/timeFormat';
 
 
 
@@ -23,6 +25,7 @@ import TertiaryButton from '../TertiaryButton';
 */
 const ChatHeader = ({chat, otherUser}) => {
     const {isMobile, isMainActive, setMainActive} = useLayoutStore();
+    const { onlineUsers, authUser } = useAuthStore();
 
     // modal visibility state (### TEMPORARY ####)
     const [activeModal, setActiveModal] = useState(false);
@@ -30,6 +33,9 @@ const ChatHeader = ({chat, otherUser}) => {
     // check if it's a private or group chat
     const isGroup = chat.isGroup;
 
+    // check if at least one participant of the chat is online (authenticated user is excluded)
+    const onlineMembers = chat.participants.filter(p => p.userID !== authUser.userID && onlineUsers.includes(p.userID));
+    const isOnline = onlineMembers.length > 0;
 
   return (
     <>
@@ -55,15 +61,18 @@ const ChatHeader = ({chat, otherUser}) => {
                         )
                     }
                     {/* online status */}
-                    { true && <div className='bg-accent border-3 border-light-200 dark:border-dark-200 size-3.5 lg:size-4.25 rounded-[50%] absolute -right-0.75 -bottom-0.75'></div> }
+                    { isOnline && <div className='bg-accent border-3 border-light-200 dark:border-dark-200 size-3.5 lg:size-4.25 rounded-[50%] absolute -right-0.75 -bottom-0.75'></div> }
                 </div>
                 {/* name and online status */}
                 <div className='w-full flex flex-col min-w-0'>
                     <p className='text-sm lg:text-lg'>
                         { isGroup ? chat.group.name : otherUser.name }
                     </p>    
-                    <p className='text-accent text-xs lg:text-sm'>
-                        { isGroup ? "3 Members Online" : "Online"}
+                    <p className={`${isOnline ? 'text-accent' : 'text-light-txt2 dark:text-dark-txt2'} text-xs lg:text-sm`}>
+                        { isGroup ? 
+                            `${onlineMembers.length == 0 ? 'No' : onlineMembers.length} Online Member${onlineMembers.length == 1 ? '' : 's'}` : 
+                            isOnline ? 'Online' : `Last seen ${timeSince(otherUser.lastSeen, 'on')}`
+                        }
                     </p>
                 </div>
             </div>

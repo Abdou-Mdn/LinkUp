@@ -13,7 +13,7 @@ router.post('/signup', signup);
 
 router.post("/login", login);
 
-router.post("/logout",authMiddleware, logout);
+router.post("/logout", logout);
 
 router.get("/check", authMiddleware, checkAuth);
 

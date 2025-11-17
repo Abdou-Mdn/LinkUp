@@ -81,6 +81,8 @@ const DeletedMessage = ({name, isMine, displaySender, sender, setDisplayMenu}) =
  * - displayMenu: boolean state controls options menu and details visibility
  * - setDisplayMenu: setter to toggle displayMenu state
  * - setDeleteModal, setEdit, setText, setReplyTo, inputRef: passed down to options menu
+ * - disabledChat: boolean to check if chat is disabled or active
+ * - isTemp: boolean to check if message is temporary or not 
 */
 const GroupCard = ({message, isMine, displaySender, sender, isSeen, displayMenu, setDisplayMenu, setDeleteModal, setEdit, setText, setReplyTo, inputRef, disabledChat, isTemp}) => {
     const { authUser, setAuthUser } = useAuthStore();
@@ -286,6 +288,8 @@ const GroupCard = ({message, isMine, displaySender, sender, isSeen, displayMenu,
  * - setDisplayMenu: setter to toggle displayMenu state
  * - setDeleteModal, setEdit, setText, setReplyTo, inputRef: passed down to options menu
  * - scrollToMessage: function to scroll to the original message of reply section
+ * - disabledChat: boolean to check if chat is disabled or active
+ * - isTemp: boolean to check if message is temporary or not 
 */
 const Bubble = ({message, isMine, displaySender, sender, isSeen, displayMenu, setDisplayMenu, setDeleteModal, setReplyTo, setEdit, setText, inputRef, scrollToMessage, disabledChat, isTemp}) => {
     
@@ -428,6 +432,8 @@ const Bubble = ({message, isMine, displaySender, sender, isSeen, displayMenu, se
  * - seenByOther: infos of seen status in private chat (time)
  * - myLastMessage: boolean controls whether message footer is rendered or not
  * - displayDetails: boolean controls whether footer contains text details or seen images
+ * - isTemp: boolean to check if message is temporary or not 
+ * - status: display the status of the temporary message (sending / failed) 
 */
 const MessageFooter = ({seenBy, seenByOther, myLastMessage, displayDetails, isTemp, status}) => {
     const { selectedChat } = useChatStore();
@@ -504,7 +510,7 @@ const MessageFooter = ({seenBy, seenByOther, myLastMessage, displayDetails, isTe
                                 <span>Seen by</span>
                                 {seenByNames.map((user, idx) => (
                                     <span key={user.userID}>
-                                        {user.name}{(idx < seenByNames.length - 1) && ","}
+                                        {user.name.split(" ")[0]}{(idx < seenByNames.length - 1) && ","}
                                     </span>
                                 ))}
                             </p>
@@ -534,6 +540,7 @@ const MessageFooter = ({seenBy, seenByOther, myLastMessage, displayDetails, isTe
  * - setReplyTo: setter to set message as reply target of chat input
  * - setDeletModal: setter to toggle delete message confirmation modal
  * - inputRef: chat input ref used to focus the input
+ * - disabledChat: boolean to check if chat is disabled or active (options change based on that)
 */
 const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard = false, onClose, setEdit, setText, setReplyTo, setDeleteModal, inputRef, disabledChat}, ref) => {
 
@@ -695,6 +702,7 @@ const OptionsMenu = forwardRef(({position, message, isMine, isSeen, isGroupCard 
  * - setReplyTo, setEdit, setText, inputRef: passed down to OptionMenu via Bubble and GroupCard 
  * - scrollToMessage: passed down to Bubble
  * - onDelete: callback function to update messages and chat after deleting the message 
+ * - disabledChat: boolean to check if chat is active or not (if chat is private and user account is deleted)
 */
 const MessageBubble = ({message, displayDay, displaySender, myLastMessage, isHighlighted, setReplyTo, setEdit, setText, inputRef, scrollToMessage, onDeleteMessage, disabledChat}) => {
   const { authUser } = useAuthStore();

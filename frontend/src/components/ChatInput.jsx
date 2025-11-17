@@ -9,9 +9,9 @@ import { useChatStore } from '../store/chat.store';
 import { useAuthStore } from '../store/auth.store';
 
 import { editMessage, sendMessage } from '../lib/api/chat.api';
+import { createOptimisticMessage } from '../lib/util/messages';
 
 import PrimaryButton from './PrimaryButton'
-import { createOptimisticMessage } from '../lib/util/messages';
 
 /* 
  * ChatInput Component
@@ -38,8 +38,8 @@ import { createOptimisticMessage } from '../lib/util/messages';
 */
 const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, replyTo, setReplyTo, edit, setEdit, onSendMessage, onEditMessage}, ref) => {
     const { theme } = useThemeStore();
-    const { messages, updateMessages } = useChatStore();
-    const { authUser } = useAuthStore();
+    const { messages, updateMessages, selectedChat } = useChatStore();
+    const { authUser, socket } = useAuthStore();
 
     // emoji picker visivility state
     const [showPicker, setShowPicker] = useState(false);
@@ -48,6 +48,12 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
 
     // loading state
     const [loading, setLoading] = useState(false);
+
+    // typing state
+    const [isTyping, setIsTyping] = useState(false);
+
+    // timeout for typing (if is not typing for 2s then stop)
+    let typingTimeout;
 
     // handle uploading the image
     const handleImageSelect = (e) => {
@@ -157,7 +163,7 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                 )
                 updateMessages(newMessages);
                 // update the chat list
-                onSendMessage(chat.chatID, res.newMessage, res.updatedAt);
+                onSendMessage(res.chat, res.newMessage, res.updatedAt);
             } else {
                 // mark message as failed if no valid response
                 const newMessages = useChatStore.getState().messages.map(msg =>
@@ -201,6 +207,29 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
         }
     }
 
+    // handle typing 
+    const handleTyping = () => {
+        if (!socket || !selectedChat) return;
+
+        // emit typingOn only once when starting to type
+        if (!isTyping) {
+            setIsTyping(true);
+            socket.emit("typingOn", {
+                chatID: selectedChat.chatID,
+                userID: authUser.userID
+            });
+        }
+
+        // restart timeout 
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            setIsTyping(false);
+            socket.emit("typingOff", {
+                chatID: selectedChat.chatID,
+                userID: authUser.userID
+            });
+        }, 2000); // stop after 2s of no typing
+    }
 
   return (
     <div className={`px-3 pb-3 mt-2 w-full relative z-20`}>
@@ -313,6 +342,7 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                 placeholder='Type something...'
                 value={text}
                 onChange={(e) => setText(e.target.value)}
+                onInput={handleTyping}
                 rows={1}
                 maxLength={15000}
                 className='p-1.5 lg:p-3 pl-2.5 lg:pl-4 w-full rounded-xl outline-0 focus:outline-2 resize-none text-sm lg:text-[16px]

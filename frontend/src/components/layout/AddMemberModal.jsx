@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Check, Ghost } from 'lucide-react';
 
 import { useChatStore } from '../../store/chat.store';
+import { useAuthStore } from '../../store/auth.store';
 
 import { getFriends } from '../../lib/api/user.api';
 import { addMembers } from '../../lib/api/group.api';
@@ -33,6 +34,7 @@ import AnimatedModal from '../AnimatedModal';
 */
 const AddMemberModal = ({onClose, group, requests, isAdmin, onAddMembers, onAcceptRequest}) => {
     const { selectedChat, messages, updateMessages } = useChatStore();
+    const { socket } = useAuthStore();
 
     // loading friends states (with pagination)
     const [loading, setLoading] = useState(false);
@@ -133,6 +135,21 @@ const AddMemberModal = ({onClose, group, requests, isAdmin, onAddMembers, onAcce
         // Cleanup observer on unmount or dependency change
         return () => observer.disconnect();
     }, [loading, loadingMore]);
+
+    // update lastSeen when user disconnects
+    useEffect(() => {
+        if(!socket) return;
+
+        const handleUserOffline = ({ userID, lastSeen }) => {
+            setFriends(prev =>
+                prev.map(f => f.userID === Number(userID) ? { ...f, lastSeen } : f)
+            );
+        };
+
+        socket.on("userOffline", handleUserOffline);
+
+        return () => socket.off("userOffline", handleUserOffline);
+    }, [socket]);
 
     // handle add members to group
     const handleAdd = async (event) => {

@@ -21,7 +21,7 @@ import { timeSince } from '../../lib/util/timeFormat'
  */
 const ChatPreview = ({chat, onSelect = () => {}}) => {
   
-    const { authUser } = useAuthStore();
+    const { authUser, onlineUsers } = useAuthStore();
     const { selectedChat } = useChatStore();
     const { isMobile } = useLayoutStore();
 
@@ -33,9 +33,12 @@ const ChatPreview = ({chat, onSelect = () => {}}) => {
     // get last message infos
     const message = chat.lastMessage;
 
+    // check if at least one participant of the chat is online (authenticated user is excluded)
+    const onlineMembers = isGroup ? chat.participants.filter(p => p !== authUser.userID && onlineUsers.includes(p)) : chat.participants.filter(p => p.userID !== authUser.userID && onlineUsers.includes(p.userID));
+    const isOnline = onlineMembers.length > 0;
 
     // get other user infos from participants if chat is private, check if last message was seen by the other user
-    let otherUser = null, seenByOther = false, isOnline = null;
+    let otherUser = null, seenByOther = false;
     if(!isGroup) {
         otherUser = chat.participants.filter(p => p.userID !== authUser.userID)[0];
         seenByOther = message.seenBy.some(u => u.user == otherUser.userID);
@@ -51,16 +54,16 @@ const ChatPreview = ({chat, onSelect = () => {}}) => {
 
     if(message.isDeleted) {
         // message was deleted
-        additionalInfo += " deleted message"
+        additionalInfo += ` ${additionalInfo.length == 0 ? 'D' : 'd'}eleted message`;
     } else if(!isMyMessage && message.replyTo) {
         // others replied to your message 
-        additionalInfo += " replied to your message";
+        additionalInfo += ` ${additionalInfo.length == 0 ? 'R' : 'r'}eplied to your message`;
     } else if(message.groupInvite) {
         // message is a group invite
-        additionalInfo += " sent a group invite";
+        additionalInfo += ` ${additionalInfo.length == 0 ? 'S' : 's'}ent a group invite`;
     } else if (!message.text && message.image) {
         // message is an image only
-        additionalInfo += " sent an image";
+        additionalInfo += ` ${additionalInfo.length == 0 ? 'S' : 's'}ent an image`;
     } else if (message.isAnnouncement) {
         // message is an announcement
         additionalInfo += " " + message.text;
@@ -71,7 +74,7 @@ const ChatPreview = ({chat, onSelect = () => {}}) => {
 
   return (
     <div 
-        onClick={() => onSelect(chat)}
+        onClick={() => onSelect({chat})}
         title={isGroup ? chat.group.name : otherUser.name}
         className={`w-full flex items-center gap-3 px-1 py-2 cursor-pointer mt-1 transition-all ${!isMobile && isSelected && 'bg-light-300 dark:bg-dark-300'} bg-light-200 dark:bg-dark-200 text-light-txt dark:text-dark-txt hover:bg-light-100 dark:hover:bg-dark-100`}
     >

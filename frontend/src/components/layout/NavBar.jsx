@@ -129,7 +129,7 @@ function NavBar() {
 
     // desktop version
   return (
-    <div className='absolute left-0 top-0 bottom-0 z-40 w-20 py-2 lg:py-4 flex flex-col justify-between bg-light-300 dark:bg-dark-300'>
+    <div className='absolute left-0 top-0 bottom-0 z-40 w-20 py-2 lg:py-4 flex flex-col justify-between overflow-auto scrollbar bg-light-300 dark:bg-dark-300'>
         {/* top section: logo and tab navigation */}
         <div className='flex flex-col gap-2 lg:gap-4'>
             <img src="/assets/logo.svg" alt="LinkUp" className='size-9 lg:size-12 mx-auto' />

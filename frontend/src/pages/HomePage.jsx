@@ -2,8 +2,10 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Ghost } from 'lucide-react';
 
 import { useChatStore } from '../store/chat.store';
+import { useAuthStore } from '../store/auth.store';
 
-import { getChats, markMessagesAsSeen } from '../lib/api/chat.api';
+import { getChats } from '../lib/api/chat.api';
+import { getFriendsIDs } from '../lib/api/user.api';
 
 import ResponsiveLayout from '../components/layout/ResponsiveLayout';
 import ChatPreview from '../components/previews/ChatPreview';
@@ -23,8 +25,10 @@ import ChatContainer from '../components/main/ChatContainer';
  * - loadingMore: loading more state
  * - loadMore: function to load more data (groups/requests) based on active tab
  * - selectChat: open a chat to display on main
+ * - onlineFriends: list of onlineFriends
 */
-const Aside = ({chats, loading, loadingMore, loadMore, selectChat}) => {
+const Aside = ({chats, loading, loadingMore, loadMore, selectChat, onlineFriends}) => {
+
   // loader ref
   const chatLoaderRef = useRef(null);
 
@@ -50,19 +54,35 @@ const Aside = ({chats, loading, loadingMore, loadMore, selectChat}) => {
   return (
   <div className='w-full h-screen flex flex-col items-center bg-light-200 text-light-txt dark:bg-dark-200 dark:text-dark-txt'>
       {/* online friends list */}
-      <div className='w-full p-2 flex justify-start items-center gap-3 overflow-x-auto scrollbar'>
-        {/* ----- placeholder for now */}
-        {
-           Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} title='name' className='flex-shrink-0 relative size-fit cursor-pointer'>
-                {/* image */}
-                <img src="/assets/avatar.svg" alt="" className='size-13 rounded-[50%]' />
-                {/* online status */}
-                <div className='bg-accent border-3 border-light-200 dark:border-dark-200 size-4.25 rounded-[50%] absolute -right-0.75 -bottom-0.75'></div>
-              </div>
-           ))
-        }
-      </div>
+      {
+        loading ? (
+          /* display skeletons while loading  */
+          <div className='w-full p-2 flex justify-start items-center gap-3 overflow-x-auto scrollbar border-b border-light-txt2 dark:border-dark-txt2'>
+            {Array.from({ length: 8 }).map((_, i) => <div key={i} className='size-13 rounded-full shrink-0 animate-pulse bg-light-300 dark:bg-dark-300'/>)}
+          </div>
+        ) : 
+          onlineFriends.length > 0 && (
+          <div className='w-full p-2 flex justify-start items-center gap-3 overflow-x-auto scrollbar border-b border-light-txt2 dark:border-dark-txt2'>
+            {
+              onlineFriends.map(f => (
+                <button 
+                  key={f.userID} 
+                  title={f.name} 
+                  className='flex-shrink-0 relative size-fit cursor-pointer'
+                  onClick={() => selectChat({userID: f.userID})}
+                >
+                  {/* image */}
+                  <img src={f.profilePic ? f.profilePic : "/assets/avatar.svg"} alt="" className='size-13 rounded-full' />
+                  {/* online status */}
+                  <div className='bg-accent border-3 border-light-200 dark:border-dark-200 size-4.25 rounded-full absolute -right-0.75 -bottom-0.75'></div>
+                </button>
+              ))
+            }
+          </div>
+        )
+        
+      }
+    
       {/* chats list */}
       <div className='flex-1 w-full px-2 overflow-y-auto scrollbar'>
         {
@@ -103,13 +123,21 @@ const Aside = ({chats, loading, loadingMore, loadMore, selectChat}) => {
  * params:
  * - chat: chat display, passed down as props (ChatContainer)
  * - loadingChat: loading chat state, passed down to ChatContainer
- * - onSendMessage, onEditMessage, onDeleteMessage: update chat list in aside passed down as props
+ * - onSendMessage, onEditMessage, onDeleteMessage, onSeenMessages: update chat list in aside passed down as props
 */
-const Main = ({ chat, loadingChat, onSendMessage, onEditMessage, onDeleteMessage }) => (
+const Main = ({ chat, loadingChat, onSendMessage, onEditMessage, onDeleteMessage, onSeenMessages }) => (
   <div className='min-h-screen size-full'> 
     {
       // display chat container if chat is selected
-      chat ? <ChatContainer chat={chat} loading={loadingChat} onSendMessage={onSendMessage} onEditMessage={onEditMessage} onDeleteMessage={onDeleteMessage} /> : (
+      chat ? 
+        <ChatContainer 
+          chat={chat} 
+          loading={loadingChat} 
+          onSendMessage={onSendMessage} 
+          onEditMessage={onEditMessage} 
+          onDeleteMessage={onDeleteMessage} 
+          onSeenMessages={onSeenMessages} 
+        /> : (
         // display placeholder if not
         <div className='w-full h-screen flex flex-col items-center justify-center gap-2'>
           <img src="/assets/Texting-bro.svg" className='w-[65%]' />
@@ -131,13 +159,14 @@ const Main = ({ chat, loadingChat, onSendMessage, onEditMessage, onDeleteMessage
  * - `getChats`, `markMessagesAsSeen`
 */
 function HomePage() {
-  const { selectedChat, loadingChat, selectChat } = useChatStore();
+  const { selectedChat, loadingChat, selectChat, loadMessages, subscribeToMessages, unsubscribeFromMessages } = useChatStore();
+  const { onlineUsers } = useAuthStore();
 
   /* -------- aside states -------- */
-
+  const [friends, setFriends] = useState([]); // state to store the list of user's friends 
   const [loadingChats, setLoadingChats] = useState(false); // initial loading state
   const [loadingMoreChats, setLoadingMoreChats] = useState(false); // loading more state
-
+  
   // chats list states (pagination)
   const [chats, setChats] = useState([]);
   const [chatPage, setChatPage] = useState(1);
@@ -145,8 +174,25 @@ function HomePage() {
 
   const limit = 10; // items per page
 
-  /* -------- aside data fetching -------- */
+  // keep track of online friends
+  const onlineFriends = friends.filter(f => onlineUsers.includes(f.userID));
+
   
+  /* -------- aside data fetching -------- */
+
+  // get list of friends from backend
+  const fetchFriends = async () => {
+    try {
+      const res = await getFriendsIDs();
+
+      if(res?.friends) {
+        setFriends(res.friends);
+      }
+    } catch (error) {
+      console.log("error in fetching friends ids", error);
+    }
+  }
+
   // get chats from backend
   const fetchChats = async (reset = false) => {
     // exit early if there are no more chats 
@@ -178,11 +224,15 @@ function HomePage() {
     }
   }
 
-  // initial chats loading 
+  // initial data loading 
   useEffect(() => {
     const loadChats = async () => {
       setLoadingChats(true);
-      await fetchChats(true);
+      await Promise.all([
+        fetchFriends(),
+        fetchChats(true),
+        loadMessages()
+      ]);
     }
 
     loadChats();
@@ -195,40 +245,23 @@ function HomePage() {
     fetchChats();
   }
 
-  // handle open chat
-  const onSelect = async (chat) => {
-    try {
-      selectChat({chat}); // open chat
-      const res = await markMessagesAsSeen(chat.chatID); // mark messages as seen
-      
-      if (res?.chat) {
-        // update chats list after seeing messages
-        setChats((prev) =>
-          prev.map((c) => (c.chatID === chat.chatID ? res.chat : c))
-        );
-      } 
-    } catch (error) {
-      console.log("Failed to mark messages as seen", error);
-    }
-  }
-
-  // update chats list and selected chat after sending a message
-  const onSendMessage = (chatID, lastMessage, updatedAt ) => {
-    const existingChat = chats.find(c => c.chatID === chatID);
-    if (!existingChat) return; 
-
-    const updatedChat = { ...existingChat, lastMessage, updatedAt };
-
-    const newChats = [
-      updatedChat,
-      ...chats.filter(c => c.chatID !== chatID)
-    ];
-    setChats(newChats);
+  // update chats list and selected chat after sending a message (or receiving a message)
+  const onSendMessage = (chat, lastMessage, updatedAt) => {
+    setChats(prev => {
+      const updatedChat = { ...chat, lastMessage, updatedAt };
+      const newChats = [
+        updatedChat,
+        ...prev.filter(c => c.chatID !== chat.chatID)
+      ];
+      return newChats;
+    })
   }
 
   // update chats list and selected chat after editing a message
   const onEditMessage = (chatID, messageID, text) => {
-    const newChats = chats.map(c => {
+    console.log(chatID, messageID, text);
+    console.log("chats",chats);
+    setChats(prev => prev.map(c => {
       if (c.chatID !== chatID) return c;
       const lastMessage = c.lastMessage;
       if(lastMessage.messageID !== messageID) return c;
@@ -241,13 +274,12 @@ function HomePage() {
           isEdited: true
         }
       }
-    }) 
-    setChats(newChats);
+    }));
   }
 
   // update chats list and selected chat after deleting a message
   const onDeleteMessage = (chatID, messageID) => {
-    const newChats = chats.map(c => {
+    setChats(prev => prev.map(c => {
       if (c.chatID !== chatID) return c;
       const lastMessage = c.lastMessage;
       if(lastMessage.messageID !== messageID) return c;
@@ -261,9 +293,21 @@ function HomePage() {
           isDeleted: true
         }
       }
-    }) 
-    setChats(newChats);
+    }));
   }
+
+  // update chats list after messages are seen
+  const onSeenMessages = (chat) => {
+    setChats((prev) =>
+      prev.map((c) => (c.chatID === chat.chatID ? chat : c)) 
+    )
+  }
+
+  // subscribe and unsubscribe to messages 
+  useEffect(() => {
+    subscribeToMessages(onSendMessage, onSeenMessages, onEditMessage, onDeleteMessage);
+    return () => unsubscribeFromMessages();
+  }, [selectedChat?.chatID]);
 
   // layout rendering
   return (
@@ -274,7 +318,8 @@ function HomePage() {
           loading={loadingChats}
           loadingMore={loadingMoreChats}
           loadMore={loadMoreChats}
-          selectChat={onSelect}
+          selectChat={selectChat}
+          onlineFriends={onlineFriends}
         />
       } 
       main={
@@ -284,6 +329,7 @@ function HomePage() {
           onSendMessage={onSendMessage}
           onEditMessage={onEditMessage}
           onDeleteMessage={onDeleteMessage}
+          onSeenMessages={onSeenMessages}
         />
       } 
     />
