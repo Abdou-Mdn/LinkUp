@@ -4,7 +4,7 @@ import { toast } from "react-hot-toast";
 import { io } from 'socket.io-client';
 import { useChatStore } from "./chat.store";
 
-const BASE_URL = "http://localhost:2025";
+const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:2025" : "https://linkup-backend-cdy7.onrender.com";
 
 export const useAuthStore = create((set, get) => ({
     // global states
