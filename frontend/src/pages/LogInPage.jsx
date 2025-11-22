@@ -85,7 +85,7 @@ function LogInPage() {
         </div>
         
         {/* form */}
-        <form onSubmit={handleSubmit} className='w-[75%] max-w-[370px] flex flex-col gap-4'>
+        <form onSubmit={handleSubmit} className='w-[75%] max-w-[370px] flex flex-col items-center justify-center gap-4'>
           {/* email input */}
           <TextInput
             label='Email'
