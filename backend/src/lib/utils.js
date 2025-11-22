@@ -14,7 +14,7 @@ const generateToken = (userID, res) => {
     res.cookie("jwt", token, {
         maxAge: 7 * 24 * 60 * 60 * 1000, // expires in 7 days (in ms)
         httpOnly: true, // prevents JavaScript access (XSS protection)
-        sameSite: "strict", // CSRF protection
+        sameSite: "none", // CSRF protection
         secure: process.env.NODE_ENV != "development" // // Secure only in production
     });
 
@@ -27,7 +27,7 @@ const clearToken = (res) => {
     res.cookie("jwt", "", {
         maxAge: 0,
         httpOnly: true,
-        sameSite: "strict",
+        sameSite: "none",
         secure: process.env.NODE_ENV !== "development",
     });
 }

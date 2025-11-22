@@ -23,7 +23,7 @@ LinkUp is a real-time chat application built with the MERN stack (MongoDB, Expre
 - **Check Preview Here**
 
 <p align="center">
-  <a href="https://your-preview-link.com">
+  <a href="https://linkup-37np.onrender.com">
     <img src="https://img.shields.io/badge/Live%20Demo-007BFF?style=for-the-badge&logo=vercel&logoColor=white" />
   </a>
 </p>
