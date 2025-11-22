@@ -84,7 +84,6 @@ LinkUp is an app with many features:
 - Express.js
 - Socket.io
 - Cloudinary
-- Nodemailer
 - Bcrypt
 
 #### 🔹 Database :
@@ -194,10 +193,10 @@ CLOUDINARY_API_KEY = <your_cloudinary_api_key>
 CLOUDINARY_API_SECRET = <your_cloudinary_api_secret>
 ```
 
-- **Email Services (Nodemailer):**
+- **Email Services (Brevo):**
 ```ini
 EMAIL_USER = <your_email_address>
-EMAIL_PASS = <your_sendgrid_api_key>
+BREVO_API_KEY = <your_brevo_api_key>
 ```
 
 ### 🔹 Usage:

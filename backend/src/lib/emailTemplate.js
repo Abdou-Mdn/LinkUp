@@ -1,3 +1,9 @@
+require("dotenv").config();
+const axios = require("axios");
+
+const EMAIL_USER = process.env.EMAIL_USER; 
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_URL = "https://api.brevo.com/v3/smtp/email";
 
 /* general template for the emails sent when requesting the otp code to reset password */
 const otpTemplate = (username, otp) => (
@@ -38,6 +44,41 @@ const otpTemplate = (username, otp) => (
             </p>
         </div>
     `
-)
+);
 
-module.exports = { otpTemplate }
+const sendEmail = async ( receiver, username, otp ) => {
+    try {
+        const response = await axios.post(
+            BREVO_URL,
+            {
+                sender: {
+                    name: "LinkUp Team",
+                    email: EMAIL_USER
+                },
+
+                to: [
+                    {
+                        email: receiver
+                    }
+                ],
+
+                subject: "Password Reset Code",
+                
+                htmlContent: otpTemplate(username, otp)
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "api-key": BREVO_API_KEY 
+                }
+            }
+        );
+        console.log("Email sent:", response.data);
+        return response.data;
+
+    } catch (error) {
+        console.error("Error sending email:", error.response?.data || error.message);
+    }
+}
+
+module.exports = { otpTemplate, sendEmail }

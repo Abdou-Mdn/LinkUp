@@ -2,9 +2,8 @@ require("dotenv").config();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken")
 const User = require("../models/user.model");
-const transporter = require("../lib/nodemailer");
 const { generateToken, clearToken} = require("../lib/utils");
-const { otpTemplate } = require("../lib/emailTemplate");
+const { sendEmail } = require("../lib/emailTemplate");
 
 //  register a new user account
 const signup = async (req, res) => {
@@ -181,20 +180,7 @@ const sendCode = async (req, res) => {
 
         try {
             // send otp in email
-            const info = await transporter.sendMail({
-                from: `"LinkUp Team" <${process.env.EMAIL_USER}>`,
-                to: user.email,
-                subject: "Password Reset Code",
-                html: otpTemplate(user.name, otp),
-                text: `Hi ${user.name},
-                        We have received a request to reset your password.
-                        Here is your verification code: ${otp}
-                        (It expires in 10 minutes)
-
-                        If you didn't request this, just ignore the message.
-
-                        © ${new Date().getFullYear()} LinkUp Team.`
-            });
+            const info = await sendEmail(user.email, user.name, otp);
             
             // save otp details in db
             user.otp = {
