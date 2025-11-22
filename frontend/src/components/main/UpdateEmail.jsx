@@ -73,7 +73,7 @@ const UpdateEmail = () => {
         if(!formData.password.trim()) {
             errors.password = "Password is required";
             isValid = false;
-        } else if (!formData.password.length < 8) {
+        } else if (formData.password.length < 8) {
             errors.password = "Password must be at least 8 characters"
             isValid = false
         }
@@ -130,10 +130,10 @@ const UpdateEmail = () => {
                     <span className='font-outfit text-sm text-light-txt2 dark:text-dark-txt2 pl-1'>
                         Current Email
                     </span>                
-                    <div className='p-1 w-full border-b-1 border-light-txt2 dark:border-dark-txt2 text-light-txt2 dark:text-dark-txt2'>
+                    <div className='p-1 w-full border-b border-light-txt2 dark:border-dark-txt2 text-light-txt2 dark:text-dark-txt2'>
                         <span>{authUser.email}</span>
                     </div>
-                    <span className="text-xs min-h-[1rem] block"></span>
+                    <span className="text-xs min-h-4 block"></span>
                 </div>
 
                 {/* new email input */}
