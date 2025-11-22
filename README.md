@@ -197,7 +197,7 @@ CLOUDINARY_API_SECRET = <your_cloudinary_api_secret>
 - **Email Services (Nodemailer):**
 ```ini
 EMAIL_USER = <your_email_address>
-EMAIL_PASS = <your_email_password_or_app_password>
+EMAIL_PASS = <your_sendgrid_api_key>
 ```
 
 ### 🔹 Usage:

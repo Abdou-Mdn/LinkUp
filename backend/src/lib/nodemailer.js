@@ -9,9 +9,11 @@ const nodemailer = require("nodemailer");
   it uses Gmail as the email service with credentials stored in environment variables.
 */
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.sendgrid.net",
+  port: 587,          
+  secure: false,      
   auth: {
-    user: process.env.EMAIL_USER,
+    user: "apikey",   
     pass: process.env.EMAIL_PASS,
   },
 });

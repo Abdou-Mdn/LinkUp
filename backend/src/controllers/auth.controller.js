@@ -205,7 +205,7 @@ const sendCode = async (req, res) => {
             }
             await user.save();
 
-            res.json({ message: "Code sent to your email", emailID: info.messageId });   
+            res.json({ message: "Code sent to your email (check spams)", emailID: info.messageId });   
         
         } catch (err) {
             console.error("Email send failed:", err.message);
