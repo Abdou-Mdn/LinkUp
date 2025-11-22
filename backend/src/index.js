@@ -8,6 +8,7 @@ const { initSocket } = require("./lib/socket");
 
 const app = express();
 const PORT = process.env.PORT;
+const CLIENT_URL = process.env.CLIENT_URL;
 
 // Parse incoming JSON requests with a size limit of 5MB
 app.use(express.json({ limit: '5mb' }));
@@ -17,7 +18,7 @@ app.use(cookieParser());
 
 // Enable Cross-Origin Resource Sharing (CORS)
 app.use(cors({
-    origin: "http://localhost:5173", // - allows frontend at http://localhost:5173 to make requests
+    origin: [CLIENT_URL, "http://localhost:5173"], // - allows frontend at CLIENT_URL or http://localhost:5173 to make requests
     credentials: true // allows sending cookies & auth headers
 }));
 

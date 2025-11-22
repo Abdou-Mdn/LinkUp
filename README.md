@@ -1,6 +1,6 @@
 # LinkUp
 
-![LinkUp Logo](https://res.cloudinary.com/djc2sdtw2/image/upload/v1757360163/messages/lrpy8l0dz2odlenh7wvs.png)
+![LinkUp Logo](https://res.cloudinary.com/djc2sdtw2/image/upload/v1763421871/messages/pupjxawyyreoh0qyejka.svg)
 
 > Your Conversations, All in One Place
 
@@ -178,6 +178,7 @@ Create a `.env` file in the `backend/` directory. Common variables include:
 ```ini
 MONGODB_URI = <your_mongodb_connection_string>
 PORT = 5000
+CLIENT_URL = <your_hosted_frontend_url>
 NODE_ENV = development
 ```
 

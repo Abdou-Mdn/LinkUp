@@ -239,7 +239,7 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
             <div className='mb-3 flex items-center gap-2 absolute -top-25 z-10'>
                 <div className='relative'>
                     <img 
-                        src={imgPreview} className='w-25 h-25 object-cover rounded-lg border-1 border-light-300 dark:border-dark-300'
+                        src={imgPreview} className='w-25 h-25 object-cover rounded-lg border border-light-300 dark:border-dark-300'
                     />
                     {/* remove image button */}
                     <button
@@ -257,7 +257,7 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
         {
             replyTo && (
                 <motion.div 
-                    className='w-full border-t-1 border-light-txt2 dark:border-dark-txt2 flex items-center justify-between gap-2 py-1 px-2 lg:px-8'
+                    className='w-full border-t border-light-txt2 dark:border-dark-txt2 flex items-center justify-between gap-2 py-1 px-2 lg:px-8'
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 15 }}
@@ -293,7 +293,7 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
         {
             edit && (
                 <motion.div 
-                    className='w-full border-t-1 border-light-txt2 dark:border-dark-txt2 flex items-center justify-between gap-2 py-1 px-2 lg:px-8'
+                    className='w-full border-t border-light-txt2 dark:border-dark-txt2 flex items-center justify-between gap-2 py-1 px-2 lg:px-8'
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 15 }}
@@ -346,7 +346,7 @@ const ChatInput = forwardRef(({chat, text, setText, imgPreview, setImgPreview, r
                 onInput={handleTyping}
                 rows={1}
                 maxLength={15000}
-                className='p-1.5 lg:p-3 pl-2.5 lg:pl-4 w-full rounded-xl outline-0 focus:outline-2 resize-none text-sm lg:text-[16px]
+                className='p-1.5 lg:p-3 pl-2.5 lg:pl-4 w-full rounded-xl outline-0 focus:outline-2 resize-none text-sm lg:text-normal
                 outline-secondary bg-light-300 text-light-txt dark:bg-dark-300 dark:text-dark-txt' 
                 // handle press enter to submit (shift + enter to jump to next line) 
                 onKeyDown={(e) => {
