@@ -1,6 +1,8 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 
+const isProduction = process.env.NODE_ENV !== "development"
+
 // generate JWT and set it as an HTTP-only cookie
 const generateToken = (userID, res) => {
     // Creates a signed JWT with userID payload
@@ -14,8 +16,8 @@ const generateToken = (userID, res) => {
     res.cookie("jwt", token, {
         maxAge: 7 * 24 * 60 * 60 * 1000, // expires in 7 days (in ms)
         httpOnly: true, // prevents JavaScript access (XSS protection)
-        sameSite: "none", // CSRF protection
-        secure: process.env.NODE_ENV != "development" // // Secure only in production
+        sameSite: isProduction ? "none" : "lax", // CSRF protection
+        secure: isProduction // Secure only in production
     });
 
     return token;
@@ -27,8 +29,8 @@ const clearToken = (res) => {
     res.cookie("jwt", "", {
         maxAge: 0,
         httpOnly: true,
-        sameSite: "none",
-        secure: process.env.NODE_ENV !== "development",
+        sameSite: isProduction ? "none" : "lax",
+        secure: isProduction,
     });
 }
 

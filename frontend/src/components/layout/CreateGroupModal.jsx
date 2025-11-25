@@ -222,7 +222,7 @@ const CreateGroupModal = ({onClose, onCreate}) => {
   return (
     <AnimatedModal 
         onClose={onClose}
-        className={`${activeSection == "name" ? 'h-[60%]' : 'h-[60%] lg:h-[80%]'} w-[95%] lg:w-[50%] min-w-[350px] rounded-2xl flex items-center justify-center p-8 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt`}
+        className={`${activeSection == "name" ? 'h-[60%]' : 'h-[60%] lg:h-[80%]'} w-[95%] lg:w-[50%] min-w-[350px] rounded-2xl flex items-center justify-center py-8 px-4 lg:px-8 relative bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt`}
     >
         <div className='size-full overflow-hidden'>
         <AnimatePresence initial={false} custom={direction} mode='wait'>
@@ -305,7 +305,7 @@ const CreateGroupModal = ({onClose, onCreate}) => {
                         {/* infos section */}
                         <div className='w-[70%] min-w-[340px] text-xs lg:text-sm flex items-center justify-between'>
                             {/* error span */}
-                            <span className="text-xs min-h-[1rem] block">
+                            <span className="text-xs min-h-4 block">
                                 {errors.members && <span className="text-danger">{errors.members}</span>}
                             </span>
                             {/* selected counter */}
@@ -336,7 +336,7 @@ const CreateGroupModal = ({onClose, onCreate}) => {
                                                 {/* friend profile preview */}
                                                 <ProfilePreview user={friend} />
                                                 {/* checkbox */}
-                                                <div className={`size-6 lg:size-8 rounded-sm border-1 flex items-center justify-center shrink-0 border-light-txt2 dark:border-dark-txt2 ${members.has(friend.userID) ? 'bg-primary' : 'bg-transparent'}`}>   
+                                                <div className={`size-6 lg:size-8 rounded-sm border flex items-center justify-center shrink-0 border-light-txt2 dark:border-dark-txt2 ${members.has(friend.userID) ? 'bg-primary' : 'bg-transparent'}`}>   
                                                     {
                                                         members.has(friend.userID) && <Check className='size-5 lg:size-6 text-inverted' />
                                                     }

@@ -237,7 +237,7 @@ const AddMemberModal = ({onClose, group, requests, isAdmin, onAddMembers, onAcce
                 {/* infos section */}
                 <div className='w-[70%] min-w-[340px] text-sm flex items-center justify-between'>
                     {/* error span */}
-                    <span className="text-xs min-h-[1rem] block">
+                    <span className="text-xs min-h-4 block">
                         {error && <span className="text-danger">{error}</span>}
                     </span>
                     {/* selected counter */}
@@ -293,7 +293,7 @@ const AddMemberModal = ({onClose, group, requests, isAdmin, onAddMembers, onAcce
                                             {/* friend profile preview */}
                                             <ProfilePreview user={friend} />
                                             {/* checkbox */}
-                                            <div className={`size-6 lg:size-8 rounded-sm border-1 flex items-center justify-center border-light-txt2 dark:border-dark-txt2 ${users.has(friend.userID) ? 'bg-primary' : 'bg-transparent'}`}
+                                            <div className={`size-6 lg:size-8 rounded-sm border flex items-center justify-center border-light-txt2 dark:border-dark-txt2 ${users.has(friend.userID) ? 'bg-primary' : 'bg-transparent'}`}
                                             >   
                                                 {
                                                     users.has(friend.userID) && (
@@ -356,7 +356,7 @@ const ikhti = () => (
         <form 
             onSubmit={isAdmin ? handleAdd : handleSend}
             onClick={(e) => e.stopPropagation()} 
-            className='h-[60%] lg:h-[80%] w-[95%] lg:w-[50%] min-w-[350px] rounded-2xl flex items-center justify-center p-8 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'
+            className='h-[60%] lg:h-[80%] w-[95%] lg:w-[50%] min-w-[350px] rounded-2xl flex items-center justify-center py-8 px-4 lg:px-8 bg-light-100 text-light-txt dark:bg-dark-100 dark:text-dark-txt'
         >
             <div className='size-full flex flex-col justify-center items-center gap-2'>
                 {/* title and text */}
@@ -371,7 +371,7 @@ const ikhti = () => (
                 {/* infos section */}
                 <div className='w-[70%] min-w-[340px] text-sm flex items-center justify-between'>
                     {/* error span */}
-                    <span className="text-xs min-h-[1rem] block">
+                    <span className="text-xs min-h-4 block">
                         {error && <span className="text-danger">{error}</span>}
                     </span>
                     {/* selected counter */}
@@ -427,7 +427,7 @@ const ikhti = () => (
                                             {/* friend profile preview */}
                                             <ProfilePreview user={friend} />
                                             {/* checkbox */}
-                                            <div className={`size-6 lg:size-8 rounded-sm border-1 flex items-center justify-center border-light-txt2 dark:border-dark-txt2 ${users.has(friend.userID) ? 'bg-primary' : 'bg-transparent'}`}
+                                            <div className={`size-6 lg:size-8 rounded-sm border flex items-center justify-center border-light-txt2 dark:border-dark-txt2 ${users.has(friend.userID) ? 'bg-primary' : 'bg-transparent'}`}
                                             >   
                                                 {
                                                     users.has(friend.userID) && (
